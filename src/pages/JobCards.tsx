@@ -1,288 +1,216 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Navbar from "@/components/layout/Navbar";
-import Header from "@/components/layout/Header";
+import { useJobs } from "@/hooks/use-jobs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent } from "@/components/ui/card";
-import { Job, JobStatus } from "@/lib/types";
-import { 
-  PlusCircle, 
-  Search, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle,
-  FileText,
-  Printer,
-  Trash2
-} from "lucide-react";
+import { ArrowLeft, PlusCircle, Search, Calendar } from "lucide-react";
+import { format } from "date-fns";
+import type { JobStatus } from "@/lib/types";
 
-const JobCards = () => {
+export default function JobCards() {
+  const { jobs, loading } = useJobs();
   const navigate = useNavigate();
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<JobStatus | "All">("All");
+  const [statusFilter, setStatusFilter] = useState<JobStatus | "all">("all");
 
-  // Simulate loading fake data
-  useEffect(() => {
-    // Mock data
-    const mockJobs: Job[] = Array.from({ length: 10 }, (_, i) => {
-      const id = String(i + 1);
-      const statuses: JobStatus[] = ["In Progress", "Finished", "Waiting for Parts"];
-      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
-      
-      return {
-        id,
-        job_card_number: `JC-000${id}`,
-        customer: {
-          name: ["Thandi Mokoena", "Sipho Nkosi", "Lerato Khumalo", "John Smith", "Maria Naidoo"][i % 5],
-          phone: `07${Math.floor(Math.random() * 10)}-${Math.floor(Math.random() * 1000)}-${Math.floor(Math.random() * 10000)}`,
-          email: `customer${i}@example.com`
-        },
-        device: {
-          name: ["iPhone 12", "Samsung TV", "HP Laptop", "Dell Monitor", "Sony PlayStation"][i % 5],
-          model: `Model-${Math.floor(Math.random() * 1000)}`,
-          condition: "Good condition with minor issues"
-        },
-        details: {
-          problem: ["Screen repair", "Power issue", "Software update", "Hardware replacement", "Diagnostic check"][i % 5],
-          status: randomStatus,
-          handling_fees: Math.floor(Math.random() * 300) + 100
-        },
-        created_at: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString(),
-        updated_at: new Date().toISOString()
-      };
-    });
+  const filteredJobs = jobs.filter((job) => {
+    const matchesSearch =
+      searchTerm === "" ||
+      job.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.job_card_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.device_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.device_model.toLowerCase().includes(searchTerm.toLowerCase());
 
-    setTimeout(() => {
-      setJobs(mockJobs);
-      setLoading(false);
-    }, 800);
-  }, []);
+    const matchesStatus =
+      statusFilter === "all" || job.details.status === statusFilter;
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  };
-
-  const handleStatusFilter = (value: string) => {
-    setStatusFilter(value as JobStatus | "All");
-  };
-
-  const filteredJobs = jobs.filter(job => {
-    const matchesSearch = 
-      job.job_card_number?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      job.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.device.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "All" || job.details.status === statusFilter;
-    
     return matchesSearch && matchesStatus;
   });
 
-  const handlePrintJobCard = (jobId: string) => {
-    // Simulate printing
-    console.log(`Printing job card: ${jobId}`);
-    // In a real app, this would generate and open a PDF
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-ZA', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    }).format(date);
-  };
-
-  const getStatusIcon = (status: JobStatus) => {
+  const getStatusColor = (status: JobStatus) => {
     switch (status) {
       case "In Progress":
-        return <Clock className="h-4 w-4 text-amber-500" />;
+        return "bg-blue-100 text-blue-800";
       case "Finished":
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
+        return "bg-green-100 text-green-800";
       case "Waiting for Parts":
-        return <AlertCircle className="h-4 w-4 text-blue-500" />;
+        return "bg-amber-100 text-amber-800";
       default:
-        return null;
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      
-      <main className="pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <Header
-          title="Job Cards"
-          description="Manage and track your repair job cards"
-          rightContent={
-            <Button 
-              onClick={() => navigate("/job-cards/new")}
-              className="bg-fixflow-500 hover:bg-fixflow-600"
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              New Job Card
-            </Button>
-          }
-        />
-        
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="relative flex-grow">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search by job number or customer name..."
-                  className="pl-10"
-                  value={searchTerm}
-                  onChange={handleSearch}
-                />
-              </div>
-              <div className="w-full md:w-60">
-                <Select value={statusFilter} onValueChange={handleStatusFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="All">All Statuses</SelectItem>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="Waiting for Parts">Waiting for Parts</SelectItem>
-                    <SelectItem value="Finished">Finished</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+    <div className="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-7xl mx-auto">
+      <Button
+        variant="ghost"
+        onClick={() => navigate("/dashboard")}
+        className="mb-6"
+      >
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Back to Dashboard
+      </Button>
+
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Job Cards</h1>
+          <p className="text-gray-500">Manage and track all your repair jobs</p>
+        </div>
+        <Button onClick={() => navigate("/job-cards/new")}>
+          <PlusCircle className="mr-2 h-4 w-4" />
+          New Job Card
+        </Button>
+      </div>
+
+      <Card className="mb-8">
+        <CardHeader className="pb-3">
+          <CardTitle>Job Search</CardTitle>
+          <CardDescription>
+            Filter and search through your job cards
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search by customer, job number or device..."
+                className="pl-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-          </CardContent>
-        </Card>
-        
-        <div className="bg-white shadow rounded-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full whitespace-nowrap">
-              <thead>
-                <tr className="bg-gray-50 text-left">
-                  <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Job Card</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Device</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Problem</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                  <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {loading ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                      <div className="flex justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-fixflow-500"></div>
-                      </div>
-                      <p className="mt-2">Loading job cards...</p>
-                    </td>
-                  </tr>
-                ) : filteredJobs.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                      <div className="flex justify-center">
-                        <FileText className="h-12 w-12 text-gray-400" />
-                      </div>
-                      <p className="mt-2 text-lg font-semibold">No job cards found</p>
-                      <p className="mt-1">Try adjusting your search or filter criteria</p>
-                      <Button 
-                        className="mt-4 bg-fixflow-500 hover:bg-fixflow-600"
-                        onClick={() => {
-                          setSearchTerm("");
-                          setStatusFilter("All");
-                        }}
-                      >
-                        Clear Filters
-                      </Button>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredJobs.map(job => (
-                    <tr 
-                      key={job.id} 
-                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+            <Select
+              value={statusFilter}
+              onValueChange={(value: JobStatus | "all") => setStatusFilter(value)}
+            >
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Finished">Finished</SelectItem>
+                <SelectItem value="Waiting for Parts">Waiting for Parts</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All Jobs</CardTitle>
+          <CardDescription>
+            Showing {filteredJobs.length} of {jobs.length} jobs
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-16 bg-gray-100 animate-pulse rounded-md"></div>
+              ))}
+            </div>
+          ) : filteredJobs.length > 0 ? (
+            <div className="border rounded-md overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Job Card #</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Device</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredJobs.map((job) => (
+                    <TableRow
+                      key={job.id}
+                      className="cursor-pointer hover:bg-gray-50"
                       onClick={() => navigate(`/job-cards/${job.id}`)}
                     >
-                      <td className="px-6 py-4 text-sm font-medium text-fixflow-600">
-                        {job.job_card_number}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        <div>{job.customer.name}</div>
-                        <div className="text-xs text-gray-500">{job.customer.phone}</div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        <div>{job.device.name}</div>
-                        <div className="text-xs text-gray-500">{job.device.model}</div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {job.details.problem}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          job.details.status === "In Progress" 
-                            ? "bg-amber-100 text-amber-700" 
-                            : job.details.status === "Finished" 
-                              ? "bg-green-100 text-green-700" 
-                              : "bg-blue-100 text-blue-700"
-                        }`}>
-                          {getStatusIcon(job.details.status)}
-                          <span className="ml-1">{job.details.status}</span>
+                      <TableCell className="font-medium">{job.job_card_number}</TableCell>
+                      <TableCell>{job.customer_name}</TableCell>
+                      <TableCell>
+                        {job.device_name} {job.device_model}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-2 text-gray-400" />
+                          {format(new Date(job.created_at!), "MMM d, yyyy")}
                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {formatDate(job.created_at || '')}
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-right">
-                        <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-fixflow-600 hover:text-fixflow-700 hover:bg-fixflow-50"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePrintJobCard(job.id as string);
-                            }}
-                          >
-                            <span className="sr-only">Print</span>
-                            <Printer className="h-4 w-4" />
-                          </Button>
-                          {job.details.status === "Finished" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/invoices/new?jobId=${job.id}`);
-                              }}
-                            >
-                              <span className="sr-only">Invoice</span>
-                              <FileText className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </main>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(job.details.status as JobStatus)}>
+                          {job.details.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <div className="mx-auto h-12 w-12 text-gray-300">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No jobs found</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                {jobs.length === 0
+                  ? "Get started by creating a new job card"
+                  : "Try adjusting your search or filter"}
+              </p>
+              {jobs.length === 0 && (
+                <div className="mt-6">
+                  <Button onClick={() => navigate("/job-cards/new")}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    New Job Card
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
-};
-
-export default JobCards;
+}

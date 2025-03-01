@@ -9,7 +9,125 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      companies: {
+        Row: {
+          address: string
+          created_at: string
+          email: string
+          id: string
+          logo_url: string | null
+          name: string
+          phone: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          email: string
+          id?: string
+          logo_url?: string | null
+          name: string
+          phone: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          email?: string
+          id?: string
+          logo_url?: string | null
+          name?: string
+          phone?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          bill_amount: number
+          bill_description: string
+          created_at: string
+          id: string
+          job_id: string
+          total: number
+        }
+        Insert: {
+          bill_amount: number
+          bill_description: string
+          created_at?: string
+          id?: string
+          job_id: string
+          total: number
+        }
+        Update: {
+          bill_amount?: number
+          bill_description?: string
+          created_at?: string
+          id?: string
+          job_id?: string
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          created_at: string
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string
+          device_condition: string
+          device_model: string
+          device_name: string
+          handling_fees: number
+          id: string
+          job_card_number: string
+          problem: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_email?: string | null
+          customer_name: string
+          customer_phone: string
+          device_condition: string
+          device_model: string
+          device_name: string
+          handling_fees: number
+          id?: string
+          job_card_number: string
+          problem: string
+          status: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string
+          device_condition?: string
+          device_model?: string
+          device_name?: string
+          handling_fees?: number
+          id?: string
+          job_card_number?: string
+          problem?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
