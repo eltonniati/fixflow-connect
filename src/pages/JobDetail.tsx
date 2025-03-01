@@ -62,11 +62,26 @@ export default function JobDetail() {
   }
 
   const handlePrintOrPDF = useReactToPrint({
-    content: () => jobCardRef.current,
+    content: () => {
+      console.log("Attempting to get content from ref:", jobCardRef.current);
+      if (!jobCardRef.current) {
+        console.error("Job card ref is null");
+        toast.error("Failed to prepare job card for printing");
+      }
+      return jobCardRef.current;
+    },
     documentTitle: `Job Card ${job?.job_card_number}`,
+    onBeforePrint: () => console.log("Print process started"),
     onAfterPrint: () => {
+      console.log("Print process completed");
       toast.success("Job card processed successfully");
       setIsPrintDialogOpen(false);
+    },
+    onPrintError: (error) => {
+      console.error("Print error:", error);
+      toast.error("Failed to open print dialog, falling back to manual print");
+      // Fallback to window.print()
+      window.print();
     },
     pageStyle: `
       @media print {
@@ -85,8 +100,13 @@ export default function JobDetail() {
     `,
   });
 
+  const handlePrint = () => {
+    console.log("Print button clicked");
+    handlePrintOrPDF();
+  };
+
   const handleGeneratePDF = () => {
-    // Trigger the print dialog, where user can choose "Save as PDF"
+    console.log("Save as PDF button clicked");
     handlePrintOrPDF();
     toast.info("Select 'Save as PDF' in the print dialog to generate a PDF");
   };
@@ -282,7 +302,7 @@ export default function JobDetail() {
                     Cancel
                   </Button>
                   <div className="flex gap-2">
-                    <Button onClick={handlePrintOrPDF}>
+                    <Button onClick={handlePrint}>
                       <Printer className="mr-2 h-4 w-4" />
                       Print
                     </Button>
@@ -366,7 +386,7 @@ export default function JobDetail() {
             </CardContent>
           </Card>
 
-          {/* Print Area (used for both printing and PDF generation) */}
+          {/* Print Area */}
           <div ref={jobCardRef} className="print-card hidden print:block">
             <div className="border-2 border-black p-6">
               <div className="flex justify-between items-start mb-6">
