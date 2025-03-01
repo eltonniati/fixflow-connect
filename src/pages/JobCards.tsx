@@ -36,6 +36,13 @@ export default function JobCards() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<JobStatus | "all">("all");
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+    }).format(amount);
+  };
+
   const filteredJobs = jobs.filter((job) => {
     const matchesSearch =
       searchTerm === "" ||
@@ -144,6 +151,7 @@ export default function JobCards() {
                     <TableHead>Customer</TableHead>
                     <TableHead>Device</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead>Price</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -164,6 +172,9 @@ export default function JobCards() {
                           <Calendar className="h-3 w-3 mr-2 text-gray-400" />
                           {format(new Date(job.created_at!), "MMM d, yyyy")}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {formatCurrency(job.price)}
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(job.details.status as JobStatus)}>
