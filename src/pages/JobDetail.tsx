@@ -2,7 +2,6 @@ import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useJobs } from "@/hooks/use-jobs";
 import { useReactToPrint } from "react-to-print";
-import jsPDF from "jspdf"; // Import jsPDF for PDF generation
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -62,11 +61,11 @@ export default function JobDetail() {
     setStatus(job.details.status);
   }
 
-  const handlePrint = useReactToPrint({
+  const handlePrintOrPDF = useReactToPrint({
     content: () => jobCardRef.current,
     documentTitle: `Job Card ${job?.job_card_number}`,
     onAfterPrint: () => {
-      toast.success("Job card printed successfully");
+      toast.success("Job card processed successfully");
       setIsPrintDialogOpen(false);
     },
     pageStyle: `
@@ -87,103 +86,9 @@ export default function JobDetail() {
   });
 
   const handleGeneratePDF = () => {
-    const doc = new jsPDF({
-      orientation: printOptions.orientation,
-      unit: "mm",
-      format: "a4",
-    });
-
-    let yOffset = 20; // Starting y position
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 15;
-    const contentWidth = pageWidth - 2 * margin;
-
-    // Header
-    doc.setFontSize(20);
-    doc.text("JOB CARD", margin, yOffset);
-    doc.setFontSize(10);
-    doc.text(`#${job?.job_card_number}`, margin, yOffset + 5);
-    doc.text(`Date: ${format(new Date(job!.created_at!), "MMMM d, yyyy")}`, pageWidth - margin - 60, yOffset);
-    doc.text(`Status: ${job?.details.status}`, pageWidth - margin - 60, yOffset + 5);
-    yOffset += 15;
-
-    // Draw a line
-    doc.setLineWidth(0.5);
-    doc.line(margin, yOffset, pageWidth - margin, yOffset);
-    yOffset += 10;
-
-    // Content sections
-    doc.setFontSize(12);
-
-    if (printOptions.includeCustomer) {
-      doc.setFontSize(14);
-      doc.text("Customer Details", margin, yOffset);
-      yOffset += 5;
-      doc.setFontSize(10);
-      doc.text(`Name: ${job?.customer.name}`, margin, yOffset);
-      yOffset += 5;
-      doc.text(`Phone: ${job?.customer.phone}`, margin, yOffset);
-      yOffset += 5;
-      if (job?.customer.email) {
-        doc.text(`Email: ${job.customer.email}`, margin, yOffset);
-        yOffset += 5;
-      }
-      yOffset += 5;
-    }
-
-    if (printOptions.includeDevice) {
-      doc.setFontSize(14);
-      doc.text("Device Details", margin, yOffset);
-      yOffset += 5;
-      doc.setFontSize(10);
-      doc.text(`Device: ${job?.device.name}`, margin, yOffset);
-      yOffset += 5;
-      doc.text(`Model: ${job?.device.model}`, margin, yOffset);
-      yOffset += 5;
-      doc.text(`Condition: ${job?.device.condition}`, margin, yOffset);
-      yOffset += 10;
-    }
-
-    if (printOptions.includeProblem) {
-      doc.setFontSize(14);
-      doc.text("Problem Description", margin, yOffset);
-      yOffset += 5;
-      doc.setFontSize(10);
-      const problemLines = doc.splitTextToSize(job?.details.problem || "", contentWidth);
-      doc.text(problemLines, margin, yOffset);
-      yOffset += problemLines.length * 5 + 5;
-    }
-
-    if (printOptions.includeFees) {
-      doc.setFontSize(14);
-      doc.text("Handling Fees", pageWidth - margin - 40, yOffset);
-      yOffset += 5;
-      doc.setFontSize(16);
-      doc.text(`R${job?.details.handling_fees.toFixed(2)}`, pageWidth - margin - 40, yOffset);
-      yOffset += 10;
-    }
-
-    if (printOptions.customNotes) {
-      doc.setFontSize(14);
-      doc.text("Additional Notes", margin, yOffset);
-      yOffset += 5;
-      doc.setFontSize(10);
-      const notesLines = doc.splitTextToSize(printOptions.customNotes, contentWidth);
-      doc.text(notesLines, margin, yOffset);
-      yOffset += notesLines.length * 5 + 5;
-    }
-
-    // Footer
-    doc.setLineWidth(0.5);
-    doc.line(margin, yOffset, pageWidth - margin, yOffset);
-    yOffset += 5;
-    doc.setFontSize(8);
-    doc.text(`Generated on: ${format(new Date(), "MMMM d, yyyy HH:mm")}`, margin, yOffset);
-
-    // Save the PDF
-    doc.save(`Job_Card_${job?.job_card_number}.pdf`);
-    toast.success("Job card PDF generated successfully");
-    setIsPrintDialogOpen(false);
+    // Trigger the print dialog, where user can choose "Save as PDF"
+    handlePrintOrPDF();
+    toast.info("Select 'Save as PDF' in the print dialog to generate a PDF");
   };
 
   const handleStatusChange = async (newStatus: JobStatus) => {
@@ -292,7 +197,7 @@ export default function JobDetail() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Job Card Output Options</DialogTitle>
-                  <DialogDescription>Customize your job card output</DialogDescription>
+                  <DialogDescription>Customize your job card for printing or PDF</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -377,13 +282,13 @@ export default function JobDetail() {
                     Cancel
                   </Button>
                   <div className="flex gap-2">
-                    <Button onClick={handlePrint}>
+                    <Button onClick={handlePrintOrPDF}>
                       <Printer className="mr-2 h-4 w-4" />
                       Print
                     </Button>
                     <Button onClick={handleGeneratePDF} variant="secondary">
                       <FileText className="mr-2 h-4 w-4" />
-                      Generate PDF
+                      Save as PDF
                     </Button>
                   </div>
                 </DialogFooter>
