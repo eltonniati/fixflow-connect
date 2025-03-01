@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useJobs } from "@/hooks/use-jobs";
+import { useReactToPrint } from "react-to-print";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, PlusCircle, Search, Calendar } from "lucide-react";
+import { ArrowLeft, PlusCircle, Search, Calendar, Printer } from "lucide-react";
 import { format } from "date-fns";
 import type { JobStatus } from "@/lib/types";
 
@@ -35,6 +36,7 @@ export default function JobCards() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<JobStatus | "all">("all");
+  const componentRef = useRef<HTMLDivElement>(null);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-ZA', {
@@ -42,6 +44,29 @@ export default function JobCards() {
       currency: 'ZAR',
     }).format(amount);
   };
+
+  const handlePrint = useReactToPrint({
+    content: () => componentRef.current,
+    documentTitle: "Job Cards Report",
+    pageStyle: `
+      @page {
+        size: A4;
+        margin: 10mm;
+      }
+      @media print {
+        body {
+          -webkit-print-color-adjust: exact;
+        }
+        .print-card {
+          break-inside: avoid;
+          margin-bottom: 20px;
+          padding: 15px;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+        }
+      }
+    `,
+  });
 
   const filteredJobs = jobs.filter((job) => {
     const matchesSearch =
@@ -70,6 +95,29 @@ export default function JobCards() {
     }
   };
 
+  const PrintableContent = () => (
+    <div ref={componentRef} className="p-4 hidden print:block">
+      <div className="grid grid-cols-2 gap-4 print:grid-cols-2">
+        {filteredJobs.map((job) => (
+          <div key={job.id} className="print-card">
+            <h2 className="text-xl font-bold mb-2">Job Card #{job.job_card_number}</h2>
+            <div className="space-y-1">
+              <p><strong>Customer:</strong> {job.customer.name}</p>
+              <p><strong>Device:</strong> {job.device.name} {job.device.model}</p>
+              <p><strong>Date:</strong> {format(new Date(job.created_at!), "MMM d, yyyy")}</p>
+              <p><strong>Price:</strong> {formatCurrency(job.price)}</p>
+              <p><strong>Status:</strong> 
+                <Badge className={`${getStatusColor(job.details.status as JobStatus)} ml-2`}>
+                  {job.details.status}
+                </Badge>
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-7xl mx-auto">
       <Button
@@ -86,10 +134,16 @@ export default function JobCards() {
           <h1 className="text-3xl font-bold text-gray-900">Job Cards</h1>
           <p className="text-gray-500">Manage and track all your repair jobs</p>
         </div>
-        <Button onClick={() => navigate("/job-cards/new")}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          New Job Card
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={() => navigate("/job-cards/new")}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            New Job Card
+          </Button>
+          <Button onClick={handlePrint} variant="outline">
+            <Printer className="mr-2 h-4 w-4" />
+            Print All
+          </Button>
+        </div>
       </div>
 
       <Card className="mb-8">
@@ -221,6 +275,9 @@ export default function JobCards() {
           )}
         </CardContent>
       </Card>
+
+      {/* Hidden printable content */}
+      <PrintableContent />
     </div>
   );
 }
