@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,19 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				fixflow: {
+					'50': '#f0f8ff',
+					'100': '#e0f1fe',
+					'200': '#bae2fd',
+					'300': '#7ccafb',
+					'400': '#36aef6',
+					'500': '#0c92e0',
+					'600': '#0074bf',
+					'700': '#015c9b',
+					'800': '#064d7f',
+					'900': '#0a416a',
+					'950': '#07294a',
 				}
 			},
 			borderRadius: {
@@ -70,26 +84,58 @@ export default {
 			},
 			keyframes: {
 				'accordion-down': {
-					from: {
-						height: '0'
-					},
-					to: {
-						height: 'var(--radix-accordion-content-height)'
-					}
+					from: { height: '0' },
+					to: { height: 'var(--radix-accordion-content-height)' }
 				},
 				'accordion-up': {
-					from: {
-						height: 'var(--radix-accordion-content-height)'
-					},
-					to: {
-						height: '0'
-					}
-				}
+					from: { height: 'var(--radix-accordion-content-height)' },
+					to: { height: '0' }
+				},
+				'fade-in': {
+					from: { opacity: '0' },
+					to: { opacity: '1' }
+				},
+				'fade-out': {
+					from: { opacity: '1' },
+					to: { opacity: '0' }
+				},
+				'slide-in-right': {
+					from: { transform: 'translateX(100%)' },
+					to: { transform: 'translateX(0)' }
+				},
+				'slide-out-left': {
+					from: { transform: 'translateX(0)' },
+					to: { transform: 'translateX(-100%)' }
+				},
+				'float': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-10px)' }
+				},
+				'pulse-subtle': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.8' }
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
-			}
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'fade-in': 'fade-in 0.3s ease-in-out',
+				'fade-out': 'fade-out 0.3s ease-in-out',
+				'slide-in-right': 'slide-in-right 0.4s ease-out',
+				'slide-out-left': 'slide-out-left 0.4s ease-out',
+				'float': 'float 3s ease-in-out infinite',
+				'pulse-subtle': 'pulse-subtle 3s ease-in-out infinite',
+			},
+			transitionDuration: {
+				'2000': '2000ms',
+				'3000': '3000ms',
+			},
+			backdropBlur: {
+				xs: '2px',
+			},
+			gridTemplateColumns: {
+				'auto-fill-card': 'repeat(auto-fill, minmax(280px, 1fr))',
+			},
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
