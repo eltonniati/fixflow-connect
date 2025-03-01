@@ -200,7 +200,7 @@ export default function CreateJobCard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="handlingFees">Handling Fees ($)</Label>
+                <Label htmlFor="handlingFees">Handling Fees (R)</Label>
                 <Input
                   id="handlingFees"
                   type="number"
