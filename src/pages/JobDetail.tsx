@@ -43,6 +43,7 @@ export default function JobDetail() {
   const [status, setStatus] = useState<JobStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
+  const [isPrintReady, setIsPrintReady] = useState(false);
   const jobCardRef = useRef<HTMLDivElement>(null);
 
   const [printOptions, setPrintOptions] = useState({
@@ -55,58 +56,48 @@ export default function JobDetail() {
   });
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-ZA', {
-      style: 'currency',
-      currency: 'ZAR',
+    return new Intl.NumberFormat("en-ZA", {
+      style: "currency",
+      currency: "ZAR",
     }).format(amount);
   };
 
   const job = jobs.find((job) => job.id === id);
 
+  // Initialize status from job
   if (job && !status) {
     setStatus(job.details.status);
   }
 
-  const printStyles = `
-    @media print {
+  const handlePrintOrPDF = useReactToPrint({
+    content: () => jobCardRef.current,
+    documentTitle: `Job_Card_${job?.job_card_number || "unknown"}`,
+    onBeforeGetContent: () => {
+      setIsPrintReady(true);
+      return new Promise((resolve) => setTimeout(resolve, 200));
+    },
+    onAfterPrint: () => {
+      setIsPrintReady(false);
+      setIsPrintDialogOpen(false);
+    },
+    pageStyle: `
       @page {
         size: A4 ${printOptions.orientation};
         margin: 15mm;
       }
       body {
         -webkit-print-color-adjust: exact;
-        font-family: Arial, sans-serif;
       }
       .print-content {
-        display: block !important;
+        visibility: visible !important;
+        position: relative !important;
       }
       .no-print {
         display: none !important;
       }
-      .print-card {
-        padding: 20px;
-        break-inside: avoid;
-      }
-    }
-  `;
-
-  const handlePrintOrPDF = useReactToPrint({
-    content: () => jobCardRef.current,
-    documentTitle: `Job Card ${job?.job_card_number}`,
-    pageStyle: printStyles,
-    onAfterPrint: () => setIsPrintDialogOpen(false),
+    `,
+    removeAfterPrint: true,
   });
-
-  const handlePrint = () => {
-    setTimeout(handlePrintOrPDF, 100);
-  };
-
-  const handleGeneratePDF = () => {
-    setTimeout(() => {
-      handlePrintOrPDF();
-      toast.info("Select 'Save as PDF' in the print dialog");
-    }, 100);
-  };
 
   const handleStatusChange = async (newStatus: JobStatus) => {
     if (!id) return;
@@ -299,11 +290,17 @@ export default function JobDetail() {
                     Cancel
                   </Button>
                   <div className="flex gap-2">
-                    <Button onClick={handlePrint}>
+                    <Button onClick={handlePrintOrPDF}>
                       <Printer className="mr-2 h-4 w-4" />
                       Print
                     </Button>
-                    <Button onClick={handleGeneratePDF} variant="secondary">
+                    <Button 
+                      onClick={() => {
+                        handlePrintOrPDF();
+                        toast.info("Select 'Save as PDF' in your print dialog");
+                      }}
+                      variant="secondary"
+                    >
                       <FileText className="mr-2 h-4 w-4" />
                       Save as PDF
                     </Button>
@@ -388,78 +385,73 @@ export default function JobDetail() {
           </Card>
 
           {/* Printable Content */}
-          <div
-            ref={jobCardRef}
-            style={{
-              position: 'absolute',
-              left: '-9999px',
-              top: '-9999px',
-            }}
-          >
-            <div className={`print-card ${printOptions.orientation} p-6`}>
-              <div className="border-2 border-black p-6">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h1 className="text-2xl font-bold">JOB CARD</h1>
-                    <p className="text-sm">#{job.job_card_number}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold">
-                      Date: {format(new Date(job.created_at!), "MMMM d, yyyy")}
-                    </p>
-                    <p className="font-semibold">Status: {job.details.status}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-6 mb-6">
-                  {printOptions.includeCustomer && (
+          <div ref={jobCardRef} className="print-content" style={{ display: "none" }}>
+            {isPrintReady && (
+              <div className={`p-6 ${printOptions.orientation === "landscape" ? "landscape" : ""}`}>
+                <div className="border-2 border-black p-6">
+                  <div className="flex justify-between items-start mb-6">
                     <div>
-                      <h2 className="text-lg font-semibold border-b mb-2">Customer Details</h2>
-                      <p><strong>Name:</strong> {job.customer.name}</p>
-                      <p><strong>Phone:</strong> {job.customer.phone}</p>
-                      {job.customer.email && <p><strong>Email:</strong> {job.customer.email}</p>}
+                      <h1 className="text-2xl font-bold">JOB CARD</h1>
+                      <p className="text-sm">#{job.job_card_number}</p>
                     </div>
-                  )}
-                  {printOptions.includeDevice && (
-                    <div>
-                      <h2 className="text-lg font-semibold border-b mb-2">Device Details</h2>
-                      <p><strong>Device:</strong> {job.device.name}</p>
-                      <p><strong>Model:</strong> {job.device.model}</p>
-                      <p><strong>Condition:</strong> {job.device.condition}</p>
-                    </div>
-                  )}
-                </div>
-
-                {printOptions.includeProblem && (
-                  <div className="mb-6">
-                    <h2 className="text-lg font-semibold border-b mb-2">Problem Description</h2>
-                    <p>{job.details.problem}</p>
-                  </div>
-                )}
-
-                {printOptions.includeFees && (
-                  <div className="flex justify-end mb-6">
                     <div className="text-right">
-                      <p className="text-lg font-semibold">Handling Fees</p>
-                      <p className="text-2xl font-bold">
-                        {formatCurrency(job.details.handling_fees)}
+                      <p className="font-semibold">
+                        Date: {format(new Date(job.created_at!), "MMMM d, yyyy")}
                       </p>
+                      <p className="font-semibold">Status: {job.details.status}</p>
                     </div>
                   </div>
-                )}
 
-                {printOptions.customNotes && (
-                  <div className="mb-6">
-                    <h2 className="text-lg font-semibold border-b mb-2">Additional Notes</h2>
-                    <p>{printOptions.customNotes}</p>
+                  <div className="grid grid-cols-2 gap-6 mb-6">
+                    {printOptions.includeCustomer && (
+                      <div>
+                        <h2 className="text-lg font-semibold border-b mb-2">Customer Details</h2>
+                        <p><strong>Name:</strong> {job.customer.name}</p>
+                        <p><strong>Phone:</strong> {job.customer.phone}</p>
+                        {job.customer.email && <p><strong>Email:</strong> {job.customer.email}</p>}
+                      </div>
+                    )}
+                    {printOptions.includeDevice && (
+                      <div>
+                        <h2 className="text-lg font-semibold border-b mb-2">Device Details</h2>
+                        <p><strong>Device:</strong> {job.device.name}</p>
+                        <p><strong>Model:</strong> {job.device.model}</p>
+                        <p><strong>Condition:</strong> {job.device.condition}</p>
+                      </div>
+                    )}
                   </div>
-                )}
 
-                <div className="mt-6 text-sm text-center border-t pt-2">
-                  <p>Generated on: {format(new Date(), "MMMM d, yyyy HH:mm")}</p>
+                  {printOptions.includeProblem && (
+                    <div className="mb-6">
+                      <h2 className="text-lg font-semibold border-b mb-2">Problem Description</h2>
+                      <p>{job.details.problem}</p>
+                    </div>
+                  )}
+
+                  {printOptions.includeFees && (
+                    <div className="flex justify-end mb-6">
+                      <div className="text-right">
+                        <p className="text-lg font-semibold">Handling Fees</p>
+                        <p className="text-2xl font-bold">
+                          {formatCurrency(job.details.handling_fees)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {printOptions.customNotes && (
+                    <div className="mb-6">
+                      <h2 className="text-lg font-semibold border-b mb-2">Additional Notes</h2>
+                      <p>{printOptions.customNotes}</p>
+                    </div>
+                  )}
+
+                  <div className="mt-6 text-sm text-center border-t pt-2">
+                    <p>Generated on: {format(new Date(), "MMMM d, yyyy HH:mm")}</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
