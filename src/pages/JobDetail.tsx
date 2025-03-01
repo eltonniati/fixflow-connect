@@ -45,7 +45,6 @@ export default function JobDetail() {
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const jobCardRef = useRef<HTMLDivElement>(null);
 
-  // Print customization options
   const [printOptions, setPrintOptions] = useState({
     includeCustomer: true,
     includeDevice: true,
@@ -55,60 +54,58 @@ export default function JobDetail() {
     customNotes: "",
   });
 
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+    }).format(amount);
+  };
+
   const job = jobs.find((job) => job.id === id);
 
   if (job && !status) {
     setStatus(job.details.status);
   }
 
+  const printStyles = `
+    @media print {
+      @page {
+        size: A4 ${printOptions.orientation};
+        margin: 15mm;
+      }
+      body {
+        -webkit-print-color-adjust: exact;
+        font-family: Arial, sans-serif;
+      }
+      .print-content {
+        display: block !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-card {
+        padding: 20px;
+        break-inside: avoid;
+      }
+    }
+  `;
+
   const handlePrintOrPDF = useReactToPrint({
-    content: () => {
-      console.log("Attempting to get content from ref:", jobCardRef.current);
-      if (!jobCardRef.current) {
-        console.error("Job card ref is null");
-        toast.error("Failed to prepare job card for printing");
-      }
-      return jobCardRef.current;
-    },
+    content: () => jobCardRef.current,
     documentTitle: `Job Card ${job?.job_card_number}`,
-    onBeforePrint: () => console.log("Print process started"),
-    onAfterPrint: () => {
-      console.log("Print process completed");
-      toast.success("Job card processed successfully");
-      setIsPrintDialogOpen(false);
-    },
-    onPrintError: (error) => {
-      console.error("Print error:", error);
-      toast.error("Failed to open print dialog, falling back to manual print");
-      // Fallback to window.print()
-      window.print();
-    },
-    pageStyle: `
-      @media print {
-        .print-card {
-          padding: 20px;
-          font-family: Arial, sans-serif;
-        }
-        .no-print {
-          display: none;
-        }
-        @page {
-          size: A4 ${printOptions.orientation};
-          margin: 15mm;
-        }
-      }
-    `,
+    pageStyle: printStyles,
+    onAfterPrint: () => setIsPrintDialogOpen(false),
   });
 
   const handlePrint = () => {
-    console.log("Print button clicked");
-    handlePrintOrPDF();
+    setTimeout(handlePrintOrPDF, 100);
   };
 
   const handleGeneratePDF = () => {
-    console.log("Save as PDF button clicked");
-    handlePrintOrPDF();
-    toast.info("Select 'Save as PDF' in the print dialog to generate a PDF");
+    setTimeout(() => {
+      handlePrintOrPDF();
+      toast.info("Select 'Save as PDF' in the print dialog");
+    }, 100);
   };
 
   const handleStatusChange = async (newStatus: JobStatus) => {
@@ -133,7 +130,7 @@ export default function JobDetail() {
     toast("Redirecting to invoice creation...", {
       duration: 2000,
       onAutoClose: () => {
-        toast.info("Invoice functionality will be implemented soon");
+        toast.info("Invoice functionality coming soon");
       },
     });
   };
@@ -216,8 +213,8 @@ export default function JobDetail() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Job Card Output Options</DialogTitle>
-                  <DialogDescription>Customize your job card for printing or PDF</DialogDescription>
+                  <DialogTitle>Print Options</DialogTitle>
+                  <DialogDescription>Customize the job card output</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -228,7 +225,7 @@ export default function JobDetail() {
                           id="customer"
                           checked={printOptions.includeCustomer}
                           onCheckedChange={(checked) =>
-                            setPrintOptions({ ...printOptions, includeCustomer: checked as boolean })
+                            setPrintOptions({ ...printOptions, includeCustomer: !!checked })
                           }
                         />
                         <Label htmlFor="customer">Customer Details</Label>
@@ -238,7 +235,7 @@ export default function JobDetail() {
                           id="device"
                           checked={printOptions.includeDevice}
                           onCheckedChange={(checked) =>
-                            setPrintOptions({ ...printOptions, includeDevice: checked as boolean })
+                            setPrintOptions({ ...printOptions, includeDevice: !!checked })
                           }
                         />
                         <Label htmlFor="device">Device Details</Label>
@@ -248,7 +245,7 @@ export default function JobDetail() {
                           id="problem"
                           checked={printOptions.includeProblem}
                           onCheckedChange={(checked) =>
-                            setPrintOptions({ ...printOptions, includeProblem: checked as boolean })
+                            setPrintOptions({ ...printOptions, includeProblem: !!checked })
                           }
                         />
                         <Label htmlFor="problem">Problem Description</Label>
@@ -258,7 +255,7 @@ export default function JobDetail() {
                           id="fees"
                           checked={printOptions.includeFees}
                           onCheckedChange={(checked) =>
-                            setPrintOptions({ ...printOptions, includeFees: checked as boolean })
+                            setPrintOptions({ ...printOptions, includeFees: !!checked })
                           }
                         />
                         <Label htmlFor="fees">Handling Fees</Label>
@@ -266,7 +263,7 @@ export default function JobDetail() {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="orientation">Page Orientation</Label>
+                    <Label htmlFor="orientation">Orientation</Label>
                     <Select
                       value={printOptions.orientation}
                       onValueChange={(value) =>
@@ -293,7 +290,7 @@ export default function JobDetail() {
                       onChange={(e) =>
                         setPrintOptions({ ...printOptions, customNotes: e.target.value })
                       }
-                      placeholder="Add notes to appear on the job card"
+                      placeholder="Additional notes for the job card"
                     />
                   </div>
                 </div>
@@ -325,9 +322,9 @@ export default function JobDetail() {
           </CardFooter>
         </Card>
 
-        {/* Job Details Display and Print Area */}
+        {/* Job Details */}
         <div className="md:col-span-2">
-          {/* Screen Display */}
+          {/* Visible Card */}
           <Card className="mb-4 no-print">
             <CardHeader className="flex flex-row items-start justify-between">
               <div>
@@ -336,7 +333,9 @@ export default function JobDetail() {
                   Created on {format(new Date(job.created_at!), "MMMM d, yyyy")}
                 </CardDescription>
               </div>
-              <Badge className={getStatusColor(job.details.status)}>{job.details.status}</Badge>
+              <Badge className={getStatusColor(job.details.status)}>
+                {job.details.status}
+              </Badge>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
@@ -381,85 +380,84 @@ export default function JobDetail() {
               </div>
               <div>
                 <Label className="text-muted-foreground">Handling Fees</Label>
-                <p className="text-xl font-bold">R{job.details.handling_fees.toFixed(2)}</p>
+                <p className="text-xl font-bold">
+                  {formatCurrency(job.details.handling_fees)}
+                </p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Print Area */}
-          <div ref={jobCardRef} className="print-card hidden print:block">
-            <div className="border-2 border-black p-6">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h1 className="text-2xl font-bold">JOB CARD</h1>
-                  <p className="text-sm">#{job.job_card_number}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold">
-                    Date: {format(new Date(job.created_at!), "MMMM d, yyyy")}
-                  </p>
-                  <p className="font-semibold">Status: {job.details.status}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                {printOptions.includeCustomer && (
+          {/* Printable Content */}
+          <div
+            ref={jobCardRef}
+            style={{
+              position: 'absolute',
+              left: '-9999px',
+              top: '-9999px',
+            }}
+          >
+            <div className={`print-card ${printOptions.orientation} p-6`}>
+              <div className="border-2 border-black p-6">
+                <div className="flex justify-between items-start mb-6">
                   <div>
-                    <h2 className="text-lg font-semibold border-b mb-2">Customer Details</h2>
-                    <p>
-                      <strong>Name:</strong> {job.customer.name}
-                    </p>
-                    <p>
-                      <strong>Phone:</strong> {job.customer.phone}
-                    </p>
-                    {job.customer.email && (
-                      <p>
-                        <strong>Email:</strong> {job.customer.email}
-                      </p>
-                    )}
+                    <h1 className="text-2xl font-bold">JOB CARD</h1>
+                    <p className="text-sm">#{job.job_card_number}</p>
                   </div>
-                )}
-                {printOptions.includeDevice && (
-                  <div>
-                    <h2 className="text-lg font-semibold border-b mb-2">Device Details</h2>
-                    <p>
-                      <strong>Device:</strong> {job.device.name}
-                    </p>
-                    <p>
-                      <strong>Model:</strong> {job.device.model}
-                    </p>
-                    <p>
-                      <strong>Condition:</strong> {job.device.condition}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {printOptions.includeProblem && (
-                <div className="mb-6">
-                  <h2 className="text-lg font-semibold border-b mb-2">Problem Description</h2>
-                  <p>{job.details.problem}</p>
-                </div>
-              )}
-
-              {printOptions.includeFees && (
-                <div className="flex justify-end mb-6">
                   <div className="text-right">
-                    <p className="text-lg font-semibold">Handling Fees</p>
-                    <p className="text-2xl font-bold">R{job.details.handling_fees.toFixed(2)}</p>
+                    <p className="font-semibold">
+                      Date: {format(new Date(job.created_at!), "MMMM d, yyyy")}
+                    </p>
+                    <p className="font-semibold">Status: {job.details.status}</p>
                   </div>
                 </div>
-              )}
 
-              {printOptions.customNotes && (
-                <div className="mb-6">
-                  <h2 className="text-lg font-semibold border-b mb-2">Additional Notes</h2>
-                  <p>{printOptions.customNotes}</p>
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  {printOptions.includeCustomer && (
+                    <div>
+                      <h2 className="text-lg font-semibold border-b mb-2">Customer Details</h2>
+                      <p><strong>Name:</strong> {job.customer.name}</p>
+                      <p><strong>Phone:</strong> {job.customer.phone}</p>
+                      {job.customer.email && <p><strong>Email:</strong> {job.customer.email}</p>}
+                    </div>
+                  )}
+                  {printOptions.includeDevice && (
+                    <div>
+                      <h2 className="text-lg font-semibold border-b mb-2">Device Details</h2>
+                      <p><strong>Device:</strong> {job.device.name}</p>
+                      <p><strong>Model:</strong> {job.device.model}</p>
+                      <p><strong>Condition:</strong> {job.device.condition}</p>
+                    </div>
+                  )}
                 </div>
-              )}
 
-              <div className="mt-6 text-sm text-center border-t pt-2">
-                <p>Generated on: {format(new Date(), "MMMM d, yyyy HH:mm")}</p>
+                {printOptions.includeProblem && (
+                  <div className="mb-6">
+                    <h2 className="text-lg font-semibold border-b mb-2">Problem Description</h2>
+                    <p>{job.details.problem}</p>
+                  </div>
+                )}
+
+                {printOptions.includeFees && (
+                  <div className="flex justify-end mb-6">
+                    <div className="text-right">
+                      <p className="text-lg font-semibold">Handling Fees</p>
+                      <p className="text-2xl font-bold">
+                        {formatCurrency(job.details.handling_fees)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {printOptions.customNotes && (
+                  <div className="mb-6">
+                    <h2 className="text-lg font-semibold border-b mb-2">Additional Notes</h2>
+                    <p>{printOptions.customNotes}</p>
+                  </div>
+                )}
+
+                <div className="mt-6 text-sm text-center border-t pt-2">
+                  <p>Generated on: {format(new Date(), "MMMM d, yyyy HH:mm")}</p>
+                </div>
               </div>
             </div>
           </div>
