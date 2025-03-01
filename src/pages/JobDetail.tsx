@@ -20,7 +20,18 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Printer, CheckCircle, FileText } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ArrowLeft, Printer, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { JobStatus } from "@/lib/types";
@@ -31,10 +42,21 @@ export default function JobDetail() {
   const { jobs, updateJobStatus } = useJobs();
   const [status, setStatus] = useState<JobStatus | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const jobCardRef = useRef<HTMLDivElement>(null);
-  
-  const job = jobs.find(job => job.id === id);
-  
+
+  // Print customization options
+  const [printOptions, setPrintOptions] = useState({
+    includeCustomer: true,
+    includeDevice: true,
+    includeProblem: true,
+    includeFees: true,
+    orientation: "portrait" as "portrait" | "landscape",
+    customNotes: "",
+  });
+
+  const job = jobs.find((job) => job.id === id);
+
   if (job && !status) {
     setStatus(job.details.status);
   }
@@ -42,7 +64,10 @@ export default function JobDetail() {
   const handlePrint = useReactToPrint({
     content: () => jobCardRef.current,
     documentTitle: `Job Card ${job?.job_card_number}`,
-    onAfterPrint: () => toast.success("Job card printed successfully"),
+    onAfterPrint: () => {
+      toast.success("Job card printed successfully");
+      setIsPrintDialogOpen(false);
+    },
     pageStyle: `
       @media print {
         .print-card {
@@ -53,7 +78,7 @@ export default function JobDetail() {
           display: none;
         }
         @page {
-          size: A4;
+          size: A4 ${printOptions.orientation};
           margin: 15mm;
         }
       }
@@ -62,10 +87,8 @@ export default function JobDetail() {
 
   const handleStatusChange = async (newStatus: JobStatus) => {
     if (!id) return;
-    
     setLoading(true);
     setStatus(newStatus);
-    
     try {
       await updateJobStatus(id, newStatus);
       toast.success(`Status updated to ${newStatus}`);
@@ -79,15 +102,13 @@ export default function JobDetail() {
 
   const handleFinishAndInvoice = () => {
     if (!id) return;
-    
     handleStatusChange("Finished");
-    
     toast.success("Job marked as finished");
     toast("Redirecting to invoice creation...", {
       duration: 2000,
       onAutoClose: () => {
         toast.info("Invoice functionality will be implemented soon");
-      }
+      },
     });
   };
 
@@ -119,9 +140,7 @@ export default function JobDetail() {
             </CardDescription>
           </CardHeader>
           <CardFooter>
-            <Button onClick={() => navigate("/job-cards")}>
-              Return to Job Cards
-            </Button>
+            <Button onClick={() => navigate("/job-cards")}>Return to Job Cards</Button>
           </CardFooter>
         </Card>
       </div>
@@ -145,8 +164,8 @@ export default function JobDetail() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select 
-                value={status || ""} 
+              <Select
+                value={status || ""}
                 onValueChange={(value) => handleStatusChange(value as JobStatus)}
                 disabled={loading}
               >
@@ -162,16 +181,106 @@ export default function JobDetail() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col items-stretch gap-2">
-            <Button 
-              className="w-full" 
-              onClick={handlePrint}
-              variant="outline"
-            >
-              <Printer className="mr-2 h-4 w-4" />
-              Print Job Card
-            </Button>
-            <Button 
-              className="w-full" 
+            <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full" variant="outline">
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Job Card
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Print Job Card</DialogTitle>
+                  <DialogDescription>Customize your job card before printing</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Include Sections</Label>
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="customer"
+                          checked={printOptions.includeCustomer}
+                          onCheckedChange={(checked) =>
+                            setPrintOptions({ ...printOptions, includeCustomer: checked as boolean })
+                          }
+                        />
+                        <Label htmlFor="customer">Customer Details</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="device"
+                          checked={printOptions.includeDevice}
+                          onCheckedChange={(checked) =>
+                            setPrintOptions({ ...printOptions, includeDevice: checked as boolean })
+                          }
+                        />
+                        <Label htmlFor="device">Device Details</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="problem"
+                          checked={printOptions.includeProblem}
+                          onCheckedChange={(checked) =>
+                            setPrintOptions({ ...printOptions, includeProblem: checked as boolean })
+                          }
+                        />
+                        <Label htmlFor="problem">Problem Description</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="fees"
+                          checked={printOptions.includeFees}
+                          onCheckedChange={(checked) =>
+                            setPrintOptions({ ...printOptions, includeFees: checked as boolean })
+                          }
+                        />
+                        <Label htmlFor="fees">Handling Fees</Label>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="orientation">Page Orientation</Label>
+                    <Select
+                      value={printOptions.orientation}
+                      onValueChange={(value) =>
+                        setPrintOptions({
+                          ...printOptions,
+                          orientation: value as "portrait" | "landscape",
+                        })
+                      }
+                    >
+                      <SelectTrigger id="orientation">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="portrait">Portrait</SelectItem>
+                        <SelectItem value="landscape">Landscape</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="notes">Custom Notes</Label>
+                    <Input
+                      id="notes"
+                      value={printOptions.customNotes}
+                      onChange={(e) =>
+                        setPrintOptions({ ...printOptions, customNotes: e.target.value })
+                      }
+                      placeholder="Add notes to appear on the printed job card"
+                    />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handlePrint}>Print</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Button
+              className="w-full"
               onClick={handleFinishAndInvoice}
               disabled={job.details.status === "Finished" || loading}
             >
@@ -192,27 +301,43 @@ export default function JobDetail() {
                   Created on {format(new Date(job.created_at!), "MMMM d, yyyy")}
                 </CardDescription>
               </div>
-              <Badge className={getStatusColor(job.details.status)}>
-                {job.details.status}
-              </Badge>
+              <Badge className={getStatusColor(job.details.status)}>{job.details.status}</Badge>
             </CardHeader>
             <CardContent className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold mb-2">Customer Details</h3>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <div><Label className="text-muted-foreground">Name</Label><p className="font-medium">{job.customer.name}</p></div>
-                  <div><Label className="text-muted-foreground">Phone</Label><p className="font-medium">{job.customer.phone}</p></div>
+                  <div>
+                    <Label className="text-muted-foreground">Name</Label>
+                    <p className="font-medium">{job.customer.name}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Phone</Label>
+                    <p className="font-medium">{job.customer.phone}</p>
+                  </div>
                   {job.customer.email && (
-                    <div className="sm:col-span-2"><Label className="text-muted-foreground">Email</Label><p className="font-medium">{job.customer.email}</p></div>
+                    <div className="sm:col-span-2">
+                      <Label className="text-muted-foreground">Email</Label>
+                      <p className="font-medium">{job.customer.email}</p>
+                    </div>
                   )}
                 </div>
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-2">Device Details</h3>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <div><Label className="text-muted-foreground">Device</Label><p className="font-medium">{job.device.name}</p></div>
-                  <div><Label className="text-muted-foreground">Model</Label><p className="font-medium">{job.device.model}</p></div>
-                  <div className="sm:col-span-2"><Label className="text-muted-foreground">Condition</Label><p className="font-medium">{job.device.condition}</p></div>
+                  <div>
+                    <Label className="text-muted-foreground">Device</Label>
+                    <p className="font-medium">{job.device.name}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Model</Label>
+                    <p className="font-medium">{job.device.model}</p>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Label className="text-muted-foreground">Condition</Label>
+                    <p className="font-medium">{job.device.condition}</p>
+                  </div>
                 </div>
               </div>
               <div>
@@ -235,37 +360,68 @@ export default function JobDetail() {
                   <p className="text-sm">#{job.job_card_number}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold">Date: {format(new Date(job.created_at!), "MMMM d, yyyy")}</p>
+                  <p className="font-semibold">
+                    Date: {format(new Date(job.created_at!), "MMMM d, yyyy")}
+                  </p>
                   <p className="font-semibold">Status: {job.details.status}</p>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-6 mb-6">
-                <div>
-                  <h2 className="text-lg font-semibold border-b mb-2">Customer Details</h2>
-                  <p><strong>Name:</strong> {job.customer.name}</p>
-                  <p><strong>Phone:</strong> {job.customer.phone}</p>
-                  {job.customer.email && <p><strong>Email:</strong> {job.customer.email}</p>}
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold border-b mb-2">Device Details</h2>
-                  <p><strong>Device:</strong> {job.device.name}</p>
-                  <p><strong>Model:</strong> {job.device.model}</p>
-                  <p><strong>Condition:</strong> {job.device.condition}</p>
-                </div>
+                {printOptions.includeCustomer && (
+                  <div>
+                    <h2 className="text-lg font-semibold border-b mb-2">Customer Details</h2>
+                    <p>
+                      <strong>Name:</strong> {job.customer.name}
+                    </p>
+                    <p>
+                      <strong>Phone:</strong> {job.customer.phone}
+                    </p>
+                    {job.customer.email && (
+                      <p>
+                        <strong>Email:</strong> {job.customer.email}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {printOptions.includeDevice && (
+                  <div>
+                    <h2 className="text-lg font-semibold border-b mb-2">Device Details</h2>
+                    <p>
+                      <strong>Device:</strong> {job.device.name}
+                    </p>
+                    <p>
+                      <strong>Model:</strong> {job.device.model}
+                    </p>
+                    <p>
+                      <strong>Condition:</strong> {job.device.condition}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <div className="mb-6">
-                <h2 className="text-lg font-semibold border-b mb-2">Problem Description</h2>
-                <p>{job.details.problem}</p>
-              </div>
-
-              <div className="flex justify-end">
-                <div className="text-right">
-                  <p className="text-lg font-semibold">Handling Fees</p>
-                  <p className="text-2xl font-bold">R{job.details.handling_fees.toFixed(2)}</p>
+              {printOptions.includeProblem && (
+                <div className="mb-6">
+                  <h2 className="text-lg font-semibold border-b mb-2">Problem Description</h2>
+                  <p>{job.details.problem}</p>
                 </div>
-              </div>
+              )}
+
+              {printOptions.includeFees && (
+                <div className="flex justify-end mb-6">
+                  <div className="text-right">
+                    <p className="text-lg font-semibold">Handling Fees</p>
+                    <p className="text-2xl font-bold">R{job.details.handling_fees.toFixed(2)}</p>
+                  </div>
+                </div>
+              )}
+
+              {printOptions.customNotes && (
+                <div className="mb-6">
+                  <h2 className="text-lg font-semibold border-b mb-2">Additional Notes</h2>
+                  <p>{printOptions.customNotes}</p>
+                </div>
+              )}
 
               <div className="mt-6 text-sm text-center border-t pt-2">
                 <p>Generated on: {format(new Date(), "MMMM d, yyyy HH:mm")}</p>
