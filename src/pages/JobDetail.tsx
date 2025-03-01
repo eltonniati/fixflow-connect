@@ -1,5 +1,3 @@
-
-
 import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useJobs } from "@/hooks/use-jobs";
@@ -35,10 +33,8 @@ export default function JobDetail() {
   const [loading, setLoading] = useState(false);
   const jobCardRef = useRef<HTMLDivElement>(null);
   
-  // Find the job from the jobs array
   const job = jobs.find(job => job.id === id);
   
-  // If the status hasn't been initialized yet, set it from the job
   if (job && !status) {
     setStatus(job.details.status);
   }
@@ -47,6 +43,21 @@ export default function JobDetail() {
     content: () => jobCardRef.current,
     documentTitle: `Job Card ${job?.job_card_number}`,
     onAfterPrint: () => toast.success("Job card printed successfully"),
+    pageStyle: `
+      @media print {
+        .print-card {
+          padding: 20px;
+          font-family: Arial, sans-serif;
+        }
+        .no-print {
+          display: none;
+        }
+        @page {
+          size: A4;
+          margin: 15mm;
+        }
+      }
+    `,
   });
 
   const handleStatusChange = async (newStatus: JobStatus) => {
@@ -69,15 +80,12 @@ export default function JobDetail() {
   const handleFinishAndInvoice = () => {
     if (!id) return;
     
-    // First update status to finished
     handleStatusChange("Finished");
     
-    // Then navigate to create invoice page (to be implemented)
     toast.success("Job marked as finished");
     toast("Redirecting to invoice creation...", {
       duration: 2000,
       onAutoClose: () => {
-        // This would navigate to an invoice creation page in the future
         toast.info("Invoice functionality will be implemented soon");
       }
     });
@@ -99,11 +107,7 @@ export default function JobDetail() {
   if (!job) {
     return (
       <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/job-cards")}
-          className="mb-6"
-        >
+        <Button variant="ghost" onClick={() => navigate("/job-cards")} className="mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Job Cards
         </Button>
@@ -126,11 +130,7 @@ export default function JobDetail() {
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
-      <Button
-        variant="ghost"
-        onClick={() => navigate("/job-cards")}
-        className="mb-6"
-      >
+      <Button variant="ghost" onClick={() => navigate("/job-cards")} className="mb-6">
         <ArrowLeft className="mr-2 h-4 w-4" />
         Back to Job Cards
       </Button>
@@ -181,9 +181,10 @@ export default function JobDetail() {
           </CardFooter>
         </Card>
 
-        {/* Job Details Card */}
-        <div className="md:col-span-2" ref={jobCardRef}>
-          <Card>
+        {/* Job Details Display and Print Area */}
+        <div className="md:col-span-2">
+          {/* Screen Display */}
+          <Card className="mb-4 no-print">
             <CardHeader className="flex flex-row items-start justify-between">
               <div>
                 <CardTitle>Job Card #{job.job_card_number}</CardTitle>
@@ -196,59 +197,81 @@ export default function JobDetail() {
               </Badge>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Customer Details */}
               <div>
                 <h3 className="text-lg font-semibold mb-2">Customer Details</h3>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <div>
-                    <Label className="text-muted-foreground">Name</Label>
-                    <p className="font-medium">{job.customer.name}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Phone</Label>
-                    <p className="font-medium">{job.customer.phone}</p>
-                  </div>
+                  <div><Label className="text-muted-foreground">Name</Label><p className="font-medium">{job.customer.name}</p></div>
+                  <div><Label className="text-muted-foreground">Phone</Label><p className="font-medium">{job.customer.phone}</p></div>
                   {job.customer.email && (
-                    <div className="sm:col-span-2">
-                      <Label className="text-muted-foreground">Email</Label>
-                      <p className="font-medium">{job.customer.email}</p>
-                    </div>
+                    <div className="sm:col-span-2"><Label className="text-muted-foreground">Email</Label><p className="font-medium">{job.customer.email}</p></div>
                   )}
                 </div>
               </div>
-
-              {/* Device Details */}
               <div>
                 <h3 className="text-lg font-semibold mb-2">Device Details</h3>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  <div>
-                    <Label className="text-muted-foreground">Device</Label>
-                    <p className="font-medium">{job.device.name}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Model</Label>
-                    <p className="font-medium">{job.device.model}</p>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <Label className="text-muted-foreground">Condition</Label>
-                    <p className="font-medium">{job.device.condition}</p>
-                  </div>
+                  <div><Label className="text-muted-foreground">Device</Label><p className="font-medium">{job.device.name}</p></div>
+                  <div><Label className="text-muted-foreground">Model</Label><p className="font-medium">{job.device.model}</p></div>
+                  <div className="sm:col-span-2"><Label className="text-muted-foreground">Condition</Label><p className="font-medium">{job.device.condition}</p></div>
                 </div>
               </div>
-
-              {/* Problem Details */}
               <div>
                 <h3 className="text-lg font-semibold mb-2">Problem Description</h3>
                 <p>{job.details.problem}</p>
               </div>
-
-              {/* Fees */}
               <div>
                 <Label className="text-muted-foreground">Handling Fees</Label>
                 <p className="text-xl font-bold">R{job.details.handling_fees.toFixed(2)}</p>
               </div>
             </CardContent>
           </Card>
+
+          {/* Print Area */}
+          <div ref={jobCardRef} className="print-card hidden print:block">
+            <div className="border-2 border-black p-6">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h1 className="text-2xl font-bold">JOB CARD</h1>
+                  <p className="text-sm">#{job.job_card_number}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold">Date: {format(new Date(job.created_at!), "MMMM d, yyyy")}</p>
+                  <p className="font-semibold">Status: {job.details.status}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6 mb-6">
+                <div>
+                  <h2 className="text-lg font-semibold border-b mb-2">Customer Details</h2>
+                  <p><strong>Name:</strong> {job.customer.name}</p>
+                  <p><strong>Phone:</strong> {job.customer.phone}</p>
+                  {job.customer.email && <p><strong>Email:</strong> {job.customer.email}</p>}
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold border-b mb-2">Device Details</h2>
+                  <p><strong>Device:</strong> {job.device.name}</p>
+                  <p><strong>Model:</strong> {job.device.model}</p>
+                  <p><strong>Condition:</strong> {job.device.condition}</p>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold border-b mb-2">Problem Description</h2>
+                <p>{job.details.problem}</p>
+              </div>
+
+              <div className="flex justify-end">
+                <div className="text-right">
+                  <p className="text-lg font-semibold">Handling Fees</p>
+                  <p className="text-2xl font-bold">R{job.details.handling_fees.toFixed(2)}</p>
+                </div>
+              </div>
+
+              <div className="mt-6 text-sm text-center border-t pt-2">
+                <p>Generated on: {format(new Date(), "MMMM d, yyyy HH:mm")}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
