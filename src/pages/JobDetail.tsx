@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useJobs } from "@/hooks/use-jobs";
 import { useReactToPrint } from "react-to-print";
+import jsPDF from "jspdf"; // Import jsPDF for PDF generation
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -31,7 +32,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Printer, CheckCircle } from "lucide-react";
+import { ArrowLeft, Printer, CheckCircle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { JobStatus } from "@/lib/types";
@@ -61,7 +62,7 @@ export default function JobDetail() {
     setStatus(job.details.status);
   }
 
-  const generatePrintContent = useReactToPrint({
+  const handlePrint = useReactToPrint({
     content: () => jobCardRef.current,
     documentTitle: `Job Card ${job?.job_card_number}`,
     onAfterPrint: () => {
@@ -85,11 +86,104 @@ export default function JobDetail() {
     `,
   });
 
-  const handlePrint = () => {
-    // Ensure the DOM updates before printing
-    setTimeout(() => {
-      generatePrintContent();
-    }, 100); // Small delay to allow state to update and DOM to render
+  const handleGeneratePDF = () => {
+    const doc = new jsPDF({
+      orientation: printOptions.orientation,
+      unit: "mm",
+      format: "a4",
+    });
+
+    let yOffset = 20; // Starting y position
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
+    const contentWidth = pageWidth - 2 * margin;
+
+    // Header
+    doc.setFontSize(20);
+    doc.text("JOB CARD", margin, yOffset);
+    doc.setFontSize(10);
+    doc.text(`#${job?.job_card_number}`, margin, yOffset + 5);
+    doc.text(`Date: ${format(new Date(job!.created_at!), "MMMM d, yyyy")}`, pageWidth - margin - 60, yOffset);
+    doc.text(`Status: ${job?.details.status}`, pageWidth - margin - 60, yOffset + 5);
+    yOffset += 15;
+
+    // Draw a line
+    doc.setLineWidth(0.5);
+    doc.line(margin, yOffset, pageWidth - margin, yOffset);
+    yOffset += 10;
+
+    // Content sections
+    doc.setFontSize(12);
+
+    if (printOptions.includeCustomer) {
+      doc.setFontSize(14);
+      doc.text("Customer Details", margin, yOffset);
+      yOffset += 5;
+      doc.setFontSize(10);
+      doc.text(`Name: ${job?.customer.name}`, margin, yOffset);
+      yOffset += 5;
+      doc.text(`Phone: ${job?.customer.phone}`, margin, yOffset);
+      yOffset += 5;
+      if (job?.customer.email) {
+        doc.text(`Email: ${job.customer.email}`, margin, yOffset);
+        yOffset += 5;
+      }
+      yOffset += 5;
+    }
+
+    if (printOptions.includeDevice) {
+      doc.setFontSize(14);
+      doc.text("Device Details", margin, yOffset);
+      yOffset += 5;
+      doc.setFontSize(10);
+      doc.text(`Device: ${job?.device.name}`, margin, yOffset);
+      yOffset += 5;
+      doc.text(`Model: ${job?.device.model}`, margin, yOffset);
+      yOffset += 5;
+      doc.text(`Condition: ${job?.device.condition}`, margin, yOffset);
+      yOffset += 10;
+    }
+
+    if (printOptions.includeProblem) {
+      doc.setFontSize(14);
+      doc.text("Problem Description", margin, yOffset);
+      yOffset += 5;
+      doc.setFontSize(10);
+      const problemLines = doc.splitTextToSize(job?.details.problem || "", contentWidth);
+      doc.text(problemLines, margin, yOffset);
+      yOffset += problemLines.length * 5 + 5;
+    }
+
+    if (printOptions.includeFees) {
+      doc.setFontSize(14);
+      doc.text("Handling Fees", pageWidth - margin - 40, yOffset);
+      yOffset += 5;
+      doc.setFontSize(16);
+      doc.text(`R${job?.details.handling_fees.toFixed(2)}`, pageWidth - margin - 40, yOffset);
+      yOffset += 10;
+    }
+
+    if (printOptions.customNotes) {
+      doc.setFontSize(14);
+      doc.text("Additional Notes", margin, yOffset);
+      yOffset += 5;
+      doc.setFontSize(10);
+      const notesLines = doc.splitTextToSize(printOptions.customNotes, contentWidth);
+      doc.text(notesLines, margin, yOffset);
+      yOffset += notesLines.length * 5 + 5;
+    }
+
+    // Footer
+    doc.setLineWidth(0.5);
+    doc.line(margin, yOffset, pageWidth - margin, yOffset);
+    yOffset += 5;
+    doc.setFontSize(8);
+    doc.text(`Generated on: ${format(new Date(), "MMMM d, yyyy HH:mm")}`, margin, yOffset);
+
+    // Save the PDF
+    doc.save(`Job_Card_${job?.job_card_number}.pdf`);
+    toast.success("Job card PDF generated successfully");
+    setIsPrintDialogOpen(false);
   };
 
   const handleStatusChange = async (newStatus: JobStatus) => {
@@ -197,8 +291,8 @@ export default function JobDetail() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Print Job Card</DialogTitle>
-                  <DialogDescription>Customize your job card before printing</DialogDescription>
+                  <DialogTitle>Job Card Output Options</DialogTitle>
+                  <DialogDescription>Customize your job card output</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
@@ -274,15 +368,24 @@ export default function JobDetail() {
                       onChange={(e) =>
                         setPrintOptions({ ...printOptions, customNotes: e.target.value })
                       }
-                      placeholder="Add notes to appear on the printed job card"
+                      placeholder="Add notes to appear on the job card"
                     />
                   </div>
                 </div>
-                <DialogFooter>
+                <DialogFooter className="flex justify-between">
                   <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handlePrint}>Print</Button>
+                  <div className="flex gap-2">
+                    <Button onClick={handlePrint}>
+                      <Printer className="mr-2 h-4 w-4" />
+                      Print
+                    </Button>
+                    <Button onClick={handleGeneratePDF} variant="secondary">
+                      <FileText className="mr-2 h-4 w-4" />
+                      Generate PDF
+                    </Button>
+                  </div>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -358,7 +461,7 @@ export default function JobDetail() {
             </CardContent>
           </Card>
 
-          {/* Print Area */}
+          {/* Print Area (used for both printing and PDF generation) */}
           <div ref={jobCardRef} className="print-card hidden print:block">
             <div className="border-2 border-black p-6">
               <div className="flex justify-between items-start mb-6">
