@@ -229,13 +229,13 @@ const Dashboard = () => {
                                 ? "bg-green-100 text-green-700" 
                                 : "bg-blue-100 text-blue-700"
                           }`}>
-                            <span className="flex-shrink-0 h-1.5 w-1.5 rounded-full mr-1.5 ${
+                            <span className={`flex-shrink-0 h-1.5 w-1.5 rounded-full mr-1.5 ${
                               job.details.status === "In Progress" 
                                 ? "bg-amber-500" 
                                 : job.details.status === "Finished" 
                                   ? "bg-green-500" 
                                   : "bg-blue-500"
-                            }"></span>
+                            }`}></span>
                             {job.details.status}
                           </div>
                         </div>
