@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useJobs } from "@/hooks/use-jobs";
 import { useReactToPrint } from "react-to-print";
@@ -61,7 +61,7 @@ export default function JobDetail() {
     setStatus(job.details.status);
   }
 
-  const handlePrint = useReactToPrint({
+  const generatePrintContent = useReactToPrint({
     content: () => jobCardRef.current,
     documentTitle: `Job Card ${job?.job_card_number}`,
     onAfterPrint: () => {
@@ -84,6 +84,13 @@ export default function JobDetail() {
       }
     `,
   });
+
+  const handlePrint = () => {
+    // Ensure the DOM updates before printing
+    setTimeout(() => {
+      generatePrintContent();
+    }, 100); // Small delay to allow state to update and DOM to render
+  };
 
   const handleStatusChange = async (newStatus: JobStatus) => {
     if (!id) return;
