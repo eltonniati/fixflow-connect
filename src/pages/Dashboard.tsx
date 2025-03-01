@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -180,7 +179,7 @@ export default function Dashboard() {
                           </Badge>
                         </div>
                         <div className="mt-1 text-sm text-gray-500">
-                          {job.customer_name} • {job.device_name} {job.device_model}
+                          {job.customer.name} • {job.device.name} {job.device.model}
                         </div>
                       </div>
                       <ArrowRightIcon className="h-4 w-4 text-gray-400" />

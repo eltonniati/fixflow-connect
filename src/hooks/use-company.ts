@@ -59,15 +59,19 @@ export function useCompany() {
         toast.success("Company information updated successfully");
         return data;
       } else {
-        // Create new company
+        // Create new company - ensure all required fields are present
         const newCompany = {
-          ...companyData,
+          name: companyData.name || "",
+          address: companyData.address || "",
+          phone: companyData.phone || "",
+          email: companyData.email || "",
+          logo_url: companyData.logo_url,
           user_id: user.id
         };
 
         const { data, error } = await supabase
           .from("companies")
-          .insert([newCompany])
+          .insert(newCompany)
           .select()
           .single();
 

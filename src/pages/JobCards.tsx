@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useJobs } from "@/hooks/use-jobs";
@@ -40,10 +39,10 @@ export default function JobCards() {
   const filteredJobs = jobs.filter((job) => {
     const matchesSearch =
       searchTerm === "" ||
-      job.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.job_card_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.device_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.device_model.toLowerCase().includes(searchTerm.toLowerCase());
+      job.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.job_card_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.device.model.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus =
       statusFilter === "all" || job.details.status === statusFilter;
@@ -156,9 +155,9 @@ export default function JobCards() {
                       onClick={() => navigate(`/job-cards/${job.id}`)}
                     >
                       <TableCell className="font-medium">{job.job_card_number}</TableCell>
-                      <TableCell>{job.customer_name}</TableCell>
+                      <TableCell>{job.customer.name}</TableCell>
                       <TableCell>
-                        {job.device_name} {job.device_model}
+                        {job.device.name} {job.device.model}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center">
