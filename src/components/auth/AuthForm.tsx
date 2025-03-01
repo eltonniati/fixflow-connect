@@ -1,6 +1,5 @@
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,10 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function AuthForm() {
-  const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
+  const { signIn, signUp, loading } = useAuth();
   
   const [loginData, setLoginData] = useState({
     email: "",
@@ -26,14 +25,13 @@ export function AuthForm() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     
-    // Simulate login for now
-    setTimeout(() => {
-      toast.success("Successfully logged in");
-      setIsLoading(false);
-      navigate("/dashboard");
-    }, 1500);
+    try {
+      await signIn(loginData.email, loginData.password);
+    } catch (error) {
+      // Error is already handled in the signIn function
+      console.error("Login error:", error);
+    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -44,14 +42,12 @@ export function AuthForm() {
       return;
     }
     
-    setIsLoading(true);
-    
-    // Simulate signup for now
-    setTimeout(() => {
-      toast.success("Account created successfully");
-      setIsLoading(false);
-      navigate("/dashboard");
-    }, 1500);
+    try {
+      await signUp(signupData.email, signupData.password);
+    } catch (error) {
+      // Error is already handled in the signUp function
+      console.error("Signup error:", error);
+    }
   };
 
   return (
@@ -106,8 +102,8 @@ export function AuthForm() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Logging in..." : "Login"}
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Logging in..." : "Login"}
                 </Button>
               </CardFooter>
             </form>
@@ -154,8 +150,8 @@ export function AuthForm() {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Creating account..." : "Create account"}
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Creating account..." : "Create account"}
                 </Button>
               </CardFooter>
             </form>
