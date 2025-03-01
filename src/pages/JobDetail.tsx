@@ -245,7 +245,7 @@ export default function JobDetail() {
               {/* Fees */}
               <div>
                 <Label className="text-muted-foreground">Handling Fees</Label>
-                <p className="text-xl font-bold">${job.details.handling_fees.toFixed(2)}</p>
+                <p className="text-xl font-bold">R{job.details.handling_fees.toFixed(2)}</p>
               </div>
             </CardContent>
           </Card>
