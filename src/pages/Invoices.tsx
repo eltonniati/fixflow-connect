@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -8,8 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ArrowLeft, Search, FileText, Filter } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+import { useInvoices } from "@/hooks/use-invoices";
 import { Invoice } from "@/lib/types";
 
 // Helper function for currency formatting
@@ -38,63 +36,10 @@ const getStatusColor = (status: string) => {
 
 const Invoices = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const { invoices, loading } = useInvoices();
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
-
-  const fetchInvoices = async () => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("invoices")
-        .select("*, jobs!inner(*)")
-        .eq("jobs.user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      // Format the invoices with the extended data
-      const formattedInvoices: Invoice[] = (data || []).map((item) => {
-        const invoiceData = item.invoice_data || {};
-        return {
-          id: item.id,
-          invoice_number: item.invoice_number || `INV-${item.id.substring(0, 8)}`,
-          job_id: item.job_id,
-          bill_description: item.bill_description,
-          status: invoiceData.status || "Draft",
-          issue_date: invoiceData.issue_date || new Date().toISOString().split('T')[0],
-          due_date: invoiceData.due_date || new Date().toISOString().split('T')[0],
-          line_items: invoiceData.line_items || [],
-          taxes: invoiceData.taxes || [],
-          subtotal: invoiceData.subtotal || item.bill_amount || 0,
-          tax_total: invoiceData.tax_total || 0,
-          bill_amount: item.bill_amount || 0,
-          total: item.total || 0,
-          notes: invoiceData.notes || "",
-          terms: invoiceData.terms || "",
-          created_at: item.created_at
-        };
-      });
-
-      setInvoices(formattedInvoices);
-      setFilteredInvoices(formattedInvoices);
-    } catch (error) {
-      console.error("Error fetching invoices:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchInvoices();
-  }, [user]);
 
   useEffect(() => {
     // Apply filters whenever search query or status filter changes

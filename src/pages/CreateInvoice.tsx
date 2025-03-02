@@ -1,10 +1,9 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -80,7 +79,6 @@ const CreateInvoice = () => {
   }, [jobId]);
 
   const handlePrintOrPDF = useReactToPrint({
-    content: () => invoiceRef.current,
     documentTitle: `Invoice_${invoice?.invoice_number || "Draft"}`,
     onAfterPrint: () => {
       setIsPrintReady(false);

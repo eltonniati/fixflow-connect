@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
@@ -52,7 +51,6 @@ const InvoiceDetail = () => {
   }, [invoiceId]);
 
   const handlePrintOrPDF = useReactToPrint({
-    content: () => invoiceRef.current,
     documentTitle: `Invoice_${invoice?.invoice_number || "unknown"}`,
     onAfterPrint: () => {
       setIsPrintReady(false);
@@ -81,7 +79,6 @@ const InvoiceDetail = () => {
     }, 200);
   };
 
-  // Printable Invoice Component
   const PrintableInvoice = () => (
     <div className="p-6 bg-white">
       <div className="border-2 border-gray-200 p-6">
@@ -172,7 +169,6 @@ const InvoiceDetail = () => {
     </div>
   );
 
-  // NotFound component
   const InvoiceNotFound = ({ onBack }: { onBack: () => void }) => {
     return (
       <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
@@ -217,7 +213,6 @@ const InvoiceDetail = () => {
       </Button>
 
       <div className="grid gap-8 md:grid-cols-3">
-        {/* Invoice Actions */}
         <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Invoice Actions</CardTitle>
@@ -288,7 +283,6 @@ const InvoiceDetail = () => {
           </CardFooter>
         </Card>
 
-        {/* Invoice Details */}
         <div className="md:col-span-2">
           <Card className="mb-6">
             <CardHeader className="flex flex-row items-start justify-between">
@@ -370,7 +364,6 @@ const InvoiceDetail = () => {
         </div>
       </div>
 
-      {/* Print Dialog */}
       <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -389,7 +382,6 @@ const InvoiceDetail = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Printable Invoice (hidden) */}
       <div ref={invoiceRef} className={isPrintReady ? "print-content" : "hidden print-content"}>
         {isPrintReady && <PrintableInvoice />}
       </div>

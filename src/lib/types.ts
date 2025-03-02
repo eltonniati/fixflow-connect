@@ -72,6 +72,28 @@ export interface Invoice {
   created_at?: string;
 }
 
+export interface DatabaseInvoice {
+  id: string;
+  job_id: string;
+  bill_description: string;
+  bill_amount: number;
+  total: number;
+  created_at: string;
+  invoice_number?: string;
+  invoice_data?: {
+    status: "Draft" | "Sent" | "Paid" | "Overdue";
+    issue_date: string;
+    due_date: string;
+    line_items: InvoiceLineItem[];
+    taxes: InvoiceTax[];
+    subtotal: number;
+    tax_total: number;
+    notes?: string;
+    terms?: string;
+  };
+  jobs?: any;
+}
+
 export interface User {
   id?: string;
   email: string;

@@ -1,43 +1,32 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useJobs } from "@/hooks/use-jobs";
-import { useInvoices } from "@/hooks/use-invoices";
 import { useReactToPrint } from "react-to-print";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Printer, CheckCircle, FileText, PlusCircle } from "lucide-react";
-import { toast } from "sonner";
 import { format } from "date-fns";
-import { JobStatus, Job, Invoice } from "@/lib/types";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { ArrowLeft, Edit, Printer, Plus, Trash2, CheckCircle, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
+import { useJobs } from "@/hooks/use-jobs";
+import { useCompanies } from "@/hooks/use-companies";
+import { JobStatus } from "@/lib/types";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Link } from 'react-router-dom';
 
+// Helper function for currency formatting
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-ZA", {
     style: 'currency',
@@ -45,569 +34,119 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-const getStatusColor = (status: JobStatus) => {
-  switch (status) {
-    case "In Progress":
-      return "bg-blue-100 text-blue-800";
-    case "Finished":
-      return "bg-green-100 text-green-800";
-    case "Waiting for Parts":
-      return "bg-amber-100 text-amber-800";
-    default:
-      return "bg-gray-100 text-gray-800";
-  }
-};
-
-interface PrintOptions {
-  includeCustomer: boolean;
-  includeDevice: boolean;
-  includeProblem: boolean;
-  includeFees: boolean;
-  orientation: "portrait" | "landscape";
-  customNotes: string;
-}
-
-const PrintableJobCard = ({ 
-  job, 
-  options 
-}: { 
-  job: Job; 
-  options: PrintOptions;
-}) => {
-  return (
-    <div className={`p-6 ${options.orientation === "landscape" ? "landscape" : ""}`}>
-      <div className="border-2 border-black p-6">
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">JOB CARD</h1>
-            <p className="text-sm">#{job.job_card_number}</p>
-          </div>
-          <div className="text-right">
-            <p className="font-semibold">
-              Date: {format(new Date(job.created_at!), "MMMM d, yyyy")}
-            </p>
-            <p className="font-semibold">Status: {job.details.status}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-6 mb-6">
-          {options.includeCustomer && (
-            <div>
-              <h2 className="text-lg font-semibold border-b mb-2">Customer Details</h2>
-              <p><strong>Name:</strong> {job.customer.name}</p>
-              <p><strong>Phone:</strong> {job.customer.phone}</p>
-              {job.customer.email && <p><strong>Email:</strong> {job.customer.email}</p>}
-            </div>
-          )}
-          {options.includeDevice && (
-            <div>
-              <h2 className="text-lg font-semibold border-b mb-2">Device Details</h2>
-              <p><strong>Device:</strong> {job.device.name}</p>
-              <p><strong>Model:</strong> {job.device.model}</p>
-              <p><strong>Condition:</strong> {job.device.condition}</p>
-            </div>
-          )}
-        </div>
-
-        {options.includeProblem && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold border-b mb-2">Problem Description</h2>
-            <p>{job.details.problem}</p>
-          </div>
-        )}
-
-        {options.includeFees && (
-          <div className="flex justify-end mb-6">
-            <div className="text-right">
-              <p className="text-lg font-semibold">Handling Fees</p>
-              <p className="text-2xl font-bold">
-                {formatCurrency(job.details.handling_fees)}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {options.customNotes && (
-          <div className="mb-6">
-            <h2 className="text-lg font-semibold border-b mb-2">Additional Notes</h2>
-            <p>{options.customNotes}</p>
-          </div>
-        )}
-
-        <div className="mt-6 text-sm text-center border-t pt-2">
-          <p>Generated on: {format(new Date(), "MMMM d, yyyy HH:mm")}</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const JobActions = ({ 
-  job, 
-  invoices,
-  onStatusChange, 
-  onPrint, 
-  onFinish, 
-  onCreateInvoice,
-  loading 
-}: { 
-  job: Job;
-  invoices: Invoice[];
-  onStatusChange: (status: JobStatus) => void; 
-  onPrint: () => void;
-  onFinish: () => void;
-  onCreateInvoice: () => void;
-  loading: boolean;
-}) => {
-  return (
-    <Card className="md:col-span-1">
-      <CardHeader>
-        <CardTitle>Job Actions</CardTitle>
-        <CardDescription>Manage this job card</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="status">Status</Label>
-          <Select
-            value={job.details.status}
-            onValueChange={(value) => onStatusChange(value as JobStatus)}
-            disabled={loading}
-          >
-            <SelectTrigger id="status">
-              <SelectValue placeholder="Select status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="In Progress">In Progress</SelectItem>
-              <SelectItem value="Waiting for Parts">Waiting for Parts</SelectItem>
-              <SelectItem value="Finished">Finished</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </CardContent>
-      <CardFooter className="flex flex-col items-stretch gap-2">
-        <Button className="w-full" variant="outline" onClick={onPrint}>
-          <Printer className="mr-2 h-4 w-4" />
-          Print Job Card
-        </Button>
-        <Button
-          className="w-full"
-          onClick={onFinish}
-          disabled={job.details.status === "Finished" || loading}
-        >
-          <CheckCircle className="mr-2 h-4 w-4" />
-          Mark as Finished & Create Invoice
-        </Button>
-        <Button
-          className="w-full"
-          variant="secondary"
-          onClick={onCreateInvoice}
-        >
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Create New Invoice
-        </Button>
-      </CardFooter>
-    </Card>
-  );
-};
-
-const JobInfo = ({ job }: { job: Job }) => {
-  return (
-    <Card className="mb-4 no-print">
-      <CardHeader className="flex flex-row items-start justify-between">
-        <div>
-          <CardTitle>Job Card #{job.job_card_number}</CardTitle>
-          <CardDescription>
-            Created on {format(new Date(job.created_at!), "MMMM d, yyyy")}
-          </CardDescription>
-        </div>
-        <Badge className={getStatusColor(job.details.status)}>
-          {job.details.status}
-        </Badge>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Customer Details</h3>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div>
-              <Label className="text-muted-foreground">Name</Label>
-              <p className="font-medium">{job.customer.name}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Phone</Label>
-              <p className="font-medium">{job.customer.phone}</p>
-            </div>
-            {job.customer.email && (
-              <div className="sm:col-span-2">
-                <Label className="text-muted-foreground">Email</Label>
-                <p className="font-medium">{job.customer.email}</p>
-              </div>
-            )}
-          </div>
-        </div>
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Device Details</h3>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div>
-              <Label className="text-muted-foreground">Device</Label>
-              <p className="font-medium">{job.device.name}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground">Model</Label>
-              <p className="font-medium">{job.device.model}</p>
-            </div>
-            <div className="sm:col-span-2">
-              <Label className="text-muted-foreground">Condition</Label>
-              <p className="font-medium">{job.device.condition}</p>
-            </div>
-          </div>
-        </div>
-        <div>
-          <h3 className="text-lg font-semibold mb-2">Problem Description</h3>
-          <p>{job.details.problem}</p>
-        </div>
-        <div>
-          <Label className="text-muted-foreground">Handling Fees</Label>
-          <p className="text-xl font-bold">
-            {formatCurrency(job.details.handling_fees)}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-const JobInvoices = ({ 
-  invoices, 
-  onViewInvoice 
-}: { 
-  invoices: Invoice[];
-  onViewInvoice: (invoiceId: string) => void;
-}) => {
-  if (invoices.length === 0) {
-    return (
-      <Card className="mb-4 no-print">
-        <CardHeader>
-          <CardTitle>Invoices</CardTitle>
-          <CardDescription>No invoices yet for this job</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-6">
-            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">
-              No invoices have been created for this job yet
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const getInvoiceStatusColor = (status: string) => {
-    switch (status) {
-      case "Draft":
-        return "bg-gray-100 text-gray-800";
-      case "Sent":
-        return "bg-blue-100 text-blue-800";
-      case "Paid":
-        return "bg-green-100 text-green-800";
-      case "Overdue":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  return (
-    <Card className="mb-4 no-print">
-      <CardHeader>
-        <CardTitle>Invoices</CardTitle>
-        <CardDescription>Invoices created for this job</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Invoice #</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {invoices.map((invoice) => (
-              <TableRow 
-                key={invoice.id}
-                className="cursor-pointer"
-                onClick={() => onViewInvoice(invoice.id!)}
-              >
-                <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
-                <TableCell>
-                  <Badge className={getInvoiceStatusColor(invoice.status)}>
-                    {invoice.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
-                <TableCell>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewInvoice(invoice.id!);
-                    }}
-                  >
-                    <FileText className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  );
-};
-
-const PrintDialog = ({ 
-  open, 
-  onOpenChange, 
-  options, 
-  setOptions, 
-  onPrint, 
-  onPDF 
-}: { 
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  options: PrintOptions;
-  setOptions: (options: PrintOptions) => void;
-  onPrint: () => void;
-  onPDF: () => void;
-}) => {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Print Options</DialogTitle>
-          <DialogDescription>Customize the job card output</DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label>Include Sections</Label>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="customer"
-                  checked={options.includeCustomer}
-                  onCheckedChange={(checked) =>
-                    setOptions({ ...options, includeCustomer: !!checked })
-                  }
-                />
-                <Label htmlFor="customer">Customer Details</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="device"
-                  checked={options.includeDevice}
-                  onCheckedChange={(checked) =>
-                    setOptions({ ...options, includeDevice: !!checked })
-                  }
-                />
-                <Label htmlFor="device">Device Details</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="problem"
-                  checked={options.includeProblem}
-                  onCheckedChange={(checked) =>
-                    setOptions({ ...options, includeProblem: !!checked })
-                  }
-                />
-                <Label htmlFor="problem">Problem Description</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="fees"
-                  checked={options.includeFees}
-                  onCheckedChange={(checked) =>
-                    setOptions({ ...options, includeFees: !!checked })
-                  }
-                />
-                <Label htmlFor="fees">Handling Fees</Label>
-              </div>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="orientation">Orientation</Label>
-            <Select
-              value={options.orientation}
-              onValueChange={(value) =>
-                setOptions({
-                  ...options,
-                  orientation: value as "portrait" | "landscape",
-                })
-              }
-            >
-              <SelectTrigger id="orientation">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="portrait">Portrait</SelectItem>
-                <SelectItem value="landscape">Landscape</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="notes">Custom Notes</Label>
-            <Input
-              id="notes"
-              value={options.customNotes}
-              onChange={(e) =>
-                setOptions({ ...options, customNotes: e.target.value })
-              }
-              placeholder="Additional notes for the job card"
-            />
-          </div>
-        </div>
-        <DialogFooter className="flex justify-between">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <div className="flex gap-2">
-            <Button onClick={onPrint}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print
-            </Button>
-            <Button 
-              onClick={onPDF}
-              variant="secondary"
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              Save as PDF
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-const JobNotFound = ({ onBack }: { onBack: () => void }) => {
-  return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
-      <Button variant="ghost" onClick={onBack} className="mb-6">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Job Cards
-      </Button>
-      <Card>
-        <CardHeader>
-          <CardTitle>Job Not Found</CardTitle>
-          <CardDescription>
-            The job you're looking for does not exist or has been deleted.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter>
-          <Button onClick={onBack}>Return to Job Cards</Button>
-        </CardFooter>
-      </Card>
-    </div>
-  );
-};
-
-export default function JobDetail() {
+const JobDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { jobs, updateJobStatus } = useJobs();
-  const { getInvoicesForJob } = useInvoices();
-  const [loading, setLoading] = useState(false);
-  const [jobInvoices, setJobInvoices] = useState<Invoice[]>([]);
+  const { job, loading, getJob, updateJob, deleteJob } = useJobs();
+  const { companies, fetchCompanies } = useCompanies();
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [editedProblem, setEditedProblem] = useState("");
+  const [editedStatus, setEditedStatus] = useState<JobStatus>("In Progress");
+  const [editedHandlingFees, setEditedHandlingFees] = useState(0);
+  const [editedCompanyName, setEditedCompanyName] = useState("");
+  const [editedCustomerName, setEditedCustomerName] = useState("");
+  const [editedCustomerPhone, setEditedCustomerPhone] = useState("");
+  const [editedCustomerEmail, setEditedCustomerEmail] = useState("");
+  const [editedDeviceName, setEditedDeviceName] = useState("");
+  const [editedDeviceModel, setEditedDeviceModel] = useState("");
+  const [editedDeviceCondition, setEditedDeviceCondition] = useState("");
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const [isPrintReady, setIsPrintReady] = useState(false);
   const jobCardRef = useRef<HTMLDivElement>(null);
 
-  const [printOptions, setPrintOptions] = useState({
-    includeCustomer: true,
-    includeDevice: true,
-    includeProblem: true,
-    includeFees: true,
-    orientation: "portrait" as "portrait" | "landscape",
-    customNotes: "",
-  });
-
-  const job = jobs.find((job) => job.id === id);
-
   useEffect(() => {
-    const loadInvoices = async () => {
-      if (id) {
-        const invoices = await getInvoicesForJob(id);
-        setJobInvoices(invoices);
-      }
-    };
-    
-    loadInvoices();
+    if (id) {
+      getJob(id);
+    }
+    fetchCompanies();
   }, [id]);
 
+  useEffect(() => {
+    if (job) {
+      setEditedProblem(job.details.problem);
+      setEditedStatus(job.details.status);
+      setEditedHandlingFees(job.details.handling_fees);
+      setEditedCompanyName(job.customer.name);
+      setEditedCustomerName(job.customer.name);
+      setEditedCustomerPhone(job.customer.phone);
+      setEditedCustomerEmail(job.customer.email || "");
+      setEditedDeviceName(job.device.name);
+      setEditedDeviceModel(job.device.model);
+      setEditedDeviceCondition(job.device.condition);
+    }
+  }, [job]);
+
+  const handleEditToggle = () => {
+    setIsEditMode(!isEditMode);
+  };
+
+  const handleInputChange = (
+    setter: (value: string | number) => void
+  ) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setter(e.target.value);
+  };
+
+  const handleStatusChange = (status: JobStatus) => {
+    setEditedStatus(status);
+  };
+
+  const handleSave = async () => {
+    if (!job) return;
+
+    const updatedJob = {
+      ...job,
+      customer: {
+        name: editedCustomerName,
+        phone: editedCustomerPhone,
+        email: editedCustomerEmail,
+      },
+      device: {
+        name: editedDeviceName,
+        model: editedDeviceModel,
+        condition: editedDeviceCondition,
+      },
+      details: {
+        problem: editedProblem,
+        status: editedStatus,
+        handling_fees: editedHandlingFees,
+      },
+    };
+
+    const success = await updateJob(job.id!, updatedJob);
+
+    if (success) {
+      toast.success("Job card updated successfully");
+      setIsEditMode(false);
+    } else {
+      toast.error("Failed to update job card");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!job) return;
+
+    const success = await deleteJob(job.id!);
+
+    if (success) {
+      toast.success("Job card deleted successfully");
+      navigate("/job-cards");
+    } else {
+      toast.error("Failed to delete job card");
+    }
+
+    setIsDeleteDialogOpen(false);
+  };
+
   const handlePrintOrPDF = useReactToPrint({
-    content: () => jobCardRef.current,
-    documentTitle: `Job_Card_${job?.job_card_number || "unknown"}`,
-    pageStyle: `
-      @page {
-        size: A4 ${printOptions.orientation};
-        margin: 15mm;
-      }
-      body {
-        -webkit-print-color-adjust: exact;
-      }
-      .print-content {
-        visibility: visible !important;
-        position: relative !important;
-      }
-      .no-print {
-        display: none !important;
-      }
-    `,
+    documentTitle: `JobCard_${job?.job_card_number || "unknown"}`,
     onAfterPrint: () => {
       setIsPrintReady(false);
     },
   });
 
-  const handleStatusChange = async (newStatus: JobStatus) => {
-    if (!id) return;
-    setLoading(true);
-    
-    try {
-      await updateJobStatus(id, newStatus);
-      toast.success(`Status updated to ${newStatus}`);
-    } catch (error) {
-      toast.error("Failed to update status");
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFinishAndInvoice = () => {
-    if (!id) return;
-    handleStatusChange("Finished");
-    toast.success("Job marked as finished");
-    navigate(`/invoices/new/${id}`);
-  };
-
-  const handleCreateInvoice = () => {
-    if (!id) return;
-    navigate(`/invoices/new/${id}`);
-  };
-
-  const handleViewInvoice = (invoiceId: string) => {
-    navigate(`/invoices/${invoiceId}`);
-  };
-
-  const handlePrintClick = () => {
-    setIsPrintDialogOpen(true);
-  };
-
-  const executePrint = () => {
+  const handlePrint = () => {
+    setIsPrintDialogOpen(false);
     setIsPrintReady(true);
     setTimeout(() => {
       if (jobCardRef.current) {
@@ -616,19 +155,62 @@ export default function JobDetail() {
     }, 200);
   };
 
-  const handlePrint = () => {
-    setIsPrintDialogOpen(false);
-    executePrint();
-  };
+  // Printable Job Card Component
+  const PrintableJobCard = () => (
+    <div className="p-6 bg-white">
+      <div className="border-2 border-gray-200 p-6">
+        <div className="flex justify-between items-start mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">JOB CARD</h1>
+            <p className="text-lg font-medium">#{job?.job_card_number}</p>
+          </div>
+          <div className="text-right">
+            <p><strong>Created Date:</strong> {format(new Date(job?.created_at || new Date()), "MMMM d, yyyy")}</p>
+            <p><strong>Status:</strong> {job?.details.status}</p>
+          </div>
+        </div>
 
-  const handlePDF = () => {
-    setIsPrintDialogOpen(false);
-    executePrint();
-    toast.info("Select 'Save as PDF' in your print dialog");
-  };
+        <div className="grid grid-cols-2 gap-6 mb-8">
+          <div>
+            <h2 className="text-lg font-semibold border-b mb-2">Company</h2>
+            <p>{editedCompanyName}</p>
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold border-b mb-2">Customer</h2>
+            <p>{editedCustomerName}</p>
+            <p>{editedCustomerPhone}</p>
+            <p>{editedCustomerEmail}</p>
+          </div>
+        </div>
 
-  if (!job) {
-    return <JobNotFound onBack={() => navigate("/job-cards")} />;
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold border-b mb-2">Device</h2>
+          <p><strong>Name:</strong> {editedDeviceName}</p>
+          <p><strong>Model:</strong> {editedDeviceModel}</p>
+          <p><strong>Condition:</strong> {editedDeviceCondition}</p>
+        </div>
+
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold border-b mb-2">Details</h2>
+          <p><strong>Problem:</strong> {editedProblem}</p>
+          <p><strong>Handling Fees:</strong> {formatCurrency(editedHandlingFees)}</p>
+        </div>
+
+        <div className="mt-6 text-sm text-center border-t pt-2">
+          <p>Generated on: {format(new Date(), "MMMM d, yyyy HH:mm")}</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (loading || !job) {
+    return (
+      <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
+        <div className="flex justify-center items-center h-64">
+          <p className="text-muted-foreground">Loading job card...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -639,38 +221,269 @@ export default function JobDetail() {
       </Button>
 
       <div className="grid gap-8 md:grid-cols-3">
-        <JobActions 
-          job={job} 
-          invoices={jobInvoices}
-          onStatusChange={handleStatusChange}
-          onPrint={handlePrintClick}
-          onFinish={handleFinishAndInvoice}
-          onCreateInvoice={handleCreateInvoice}
-          loading={loading}
-        />
+        {/* Job Card Details */}
+        <Card className="md:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Job Card #{job.job_card_number}</CardTitle>
+              <CardDescription>
+                Created on {format(new Date(job.created_at!), "MMMM d, yyyy")}
+              </CardDescription>
+            </div>
+            <div>
+              {isEditMode ? (
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={handleSave}>
+                    Save
+                  </Button>
+                  <Button variant="ghost" onClick={handleEditToggle}>
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={handleEditToggle}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Company */}
+              <div className="space-y-2">
+                <Label htmlFor="company-name">Company</Label>
+                {isEditMode ? (
+                  <Input
+                    id="company-name"
+                    value={editedCompanyName}
+                    onChange={handleInputChange(setEditedCompanyName)}
+                  />
+                ) : (
+                  <p>{editedCompanyName}</p>
+                )}
+              </div>
 
-        <div className="md:col-span-2">
-          <JobInfo job={job} />
-          <JobInvoices 
-            invoices={jobInvoices} 
-            onViewInvoice={handleViewInvoice} 
-          />
-          <PrintDialog 
-            open={isPrintDialogOpen}
-            onOpenChange={setIsPrintDialogOpen}
-            options={printOptions}
-            setOptions={setPrintOptions}
-            onPrint={handlePrint}
-            onPDF={handlePDF}
-          />
-          <div 
-            ref={jobCardRef} 
-            className={isPrintReady ? "print-content" : "hidden print-content"}
-          >
-            {isPrintReady && <PrintableJobCard job={job} options={printOptions} />}
+              {/* Customer */}
+              <div className="space-y-2">
+                <Label htmlFor="customer-name">Customer Name</Label>
+                {isEditMode ? (
+                  <Input
+                    id="customer-name"
+                    value={editedCustomerName}
+                    onChange={handleInputChange(setEditedCustomerName)}
+                  />
+                ) : (
+                  <p>{editedCustomerName}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Customer Phone */}
+              <div className="space-y-2">
+                <Label htmlFor="customer-phone">Customer Phone</Label>
+                {isEditMode ? (
+                  <Input
+                    id="customer-phone"
+                    value={editedCustomerPhone}
+                    onChange={handleInputChange(setEditedCustomerPhone)}
+                  />
+                ) : (
+                  <p>{editedCustomerPhone}</p>
+                )}
+              </div>
+
+              {/* Customer Email */}
+              <div className="space-y-2">
+                <Label htmlFor="customer-email">Customer Email</Label>
+                {isEditMode ? (
+                  <Input
+                    id="customer-email"
+                    type="email"
+                    value={editedCustomerEmail}
+                    onChange={handleInputChange(setEditedCustomerEmail)}
+                  />
+                ) : (
+                  <p>{editedCustomerEmail || "N/A"}</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              {/* Device Name */}
+              <div className="space-y-2">
+                <Label htmlFor="device-name">Device Name</Label>
+                {isEditMode ? (
+                  <Input
+                    id="device-name"
+                    value={editedDeviceName}
+                    onChange={handleInputChange(setEditedDeviceName)}
+                  />
+                ) : (
+                  <p>{editedDeviceName}</p>
+                )}
+              </div>
+
+              {/* Device Model */}
+              <div className="space-y-2">
+                <Label htmlFor="device-model">Device Model</Label>
+                {isEditMode ? (
+                  <Input
+                    id="device-model"
+                    value={editedDeviceModel}
+                    onChange={handleInputChange(setEditedDeviceModel)}
+                  />
+                ) : (
+                  <p>{editedDeviceModel}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Device Condition */}
+            <div className="space-y-2">
+              <Label htmlFor="device-condition">Device Condition</Label>
+              {isEditMode ? (
+                <Input
+                  id="device-condition"
+                  value={editedDeviceCondition}
+                  onChange={handleInputChange(setEditedDeviceCondition)}
+                />
+              ) : (
+                <p>{editedDeviceCondition}</p>
+              )}
+            </div>
+
+            {/* Problem Description */}
+            <div className="space-y-2">
+              <Label htmlFor="problem-description">Problem Description</Label>
+              {isEditMode ? (
+                <Textarea
+                  id="problem-description"
+                  value={editedProblem}
+                  onChange={handleInputChange(setEditedProblem)}
+                />
+              ) : (
+                <p>{editedProblem}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Job Card Actions */}
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle>Job Card Actions</CardTitle>
+            <CardDescription>Manage this job card</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Status */}
+            <div>
+              <Label htmlFor="status">Status</Label>
+              {isEditMode ? (
+                <Select value={editedStatus} onValueChange={handleStatusChange}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Finished">Finished</SelectItem>
+                    <SelectItem value="Waiting for Parts">Waiting for Parts</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Badge>{editedStatus}</Badge>
+              )}
+            </div>
+
+            {/* Handling Fees */}
+            <div>
+              <Label htmlFor="handling-fees">Handling Fees</Label>
+              {isEditMode ? (
+                <Input
+                  id="handling-fees"
+                  type="number"
+                  value={editedHandlingFees}
+                  onChange={(e) =>
+                    setEditedHandlingFees(Number(e.target.value))
+                  }
+                />
+              ) : (
+                <p>{formatCurrency(editedHandlingFees)}</p>
+              )}
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col items-stretch gap-2">
+            <Button 
+              className="w-full" 
+              variant="outline" 
+              onClick={() => setIsPrintDialogOpen(true)}
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Print Job Card
+            </Button>
+            <Link to={`/invoices/new/${job.id}`}>
+              <Button className="w-full">
+                Create Invoice
+              </Button>
+            </Link>
+            <Button
+              className="w-full"
+              variant="destructive"
+              onClick={() => setIsDeleteDialogOpen(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Job Card
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Job Card</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this job card? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-between space-x-2">
+            <Button variant="secondary" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
           </div>
-        </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Print Dialog */}
+      <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Print Job Card</DialogTitle>
+            <DialogDescription>Print or save this job card as PDF</DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex justify-between">
+            <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handlePrint}>
+              <Printer className="mr-2 h-4 w-4" />
+              Print
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Printable Job Card (hidden) */}
+      <div ref={jobCardRef} className={isPrintReady ? "print-content" : "hidden print-content"}>
+        {isPrintReady && <PrintableJobCard />}
       </div>
     </div>
   );
-}
+};
+
+export default JobDetail;

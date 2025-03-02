@@ -1,30 +1,29 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Invoice, InvoiceLineItem, InvoiceTax, Job } from "@/lib/types";
+import { Invoice, InvoiceLineItem, InvoiceTax, Job, DatabaseInvoice } from "@/lib/types";
 import { v4 as uuidv4 } from "uuid";
 
 // Helper functions for mapping between database and frontend models
-const mapDatabaseInvoiceToInvoice = (dbInvoice: any): Invoice => {
+const mapDatabaseInvoiceToInvoice = (dbInvoice: DatabaseInvoice): Invoice => {
   return {
     id: dbInvoice.id,
-    invoice_number: dbInvoice.invoice_number,
+    invoice_number: dbInvoice.invoice_number || `INV-${dbInvoice.id.substring(0, 8)}`,
     job_id: dbInvoice.job_id,
     bill_description: dbInvoice.bill_description,
-    status: dbInvoice.status,
-    issue_date: dbInvoice.issue_date,
-    due_date: dbInvoice.due_date,
-    line_items: dbInvoice.line_items || [],
-    taxes: dbInvoice.taxes || [],
-    subtotal: dbInvoice.subtotal,
-    tax_total: dbInvoice.tax_total,
-    bill_amount: dbInvoice.bill_amount,
-    total: dbInvoice.total,
-    notes: dbInvoice.notes,
-    terms: dbInvoice.terms,
-    created_at: dbInvoice.created_at,
+    status: dbInvoice.invoice_data?.status || "Draft",
+    issue_date: dbInvoice.invoice_data?.issue_date || new Date().toISOString().split('T')[0],
+    due_date: dbInvoice.invoice_data?.due_date || new Date().toISOString().split('T')[0],
+    line_items: dbInvoice.invoice_data?.line_items || [],
+    taxes: dbInvoice.invoice_data?.taxes || [],
+    subtotal: dbInvoice.invoice_data?.subtotal || dbInvoice.bill_amount || 0,
+    tax_total: dbInvoice.invoice_data?.tax_total || 0,
+    bill_amount: dbInvoice.bill_amount || 0,
+    total: dbInvoice.total || 0,
+    notes: dbInvoice.invoice_data?.notes || "",
+    terms: dbInvoice.invoice_data?.terms || "",
+    created_at: dbInvoice.created_at
   };
 };
 
@@ -161,26 +160,9 @@ export function useInvoiceDetails() {
       
       if (!data) return null;
 
-      // Merge the basic invoice data with the extended JSON data
-      const invoiceData = data.invoice_data || {};
-      const formattedInvoice: Invoice = {
-        id: data.id,
-        invoice_number: data.invoice_number || `INV-${data.id.substring(0, 8)}`,
-        job_id: data.job_id,
-        bill_description: data.bill_description,
-        status: invoiceData.status || "Draft",
-        issue_date: invoiceData.issue_date || new Date().toISOString().split('T')[0],
-        due_date: invoiceData.due_date || new Date().toISOString().split('T')[0],
-        line_items: invoiceData.line_items || [],
-        taxes: invoiceData.taxes || [],
-        subtotal: invoiceData.subtotal || data.bill_amount || 0,
-        tax_total: invoiceData.tax_total || 0,
-        bill_amount: data.bill_amount || 0,
-        total: data.total || 0,
-        notes: invoiceData.notes || "",
-        terms: invoiceData.terms || "",
-        created_at: data.created_at
-      };
+      // Cast the data to DatabaseInvoice to ensure type safety
+      const dbInvoice = data as DatabaseInvoice;
+      const formattedInvoice = mapDatabaseInvoiceToInvoice(dbInvoice);
       
       setInvoice(formattedInvoice);
       return formattedInvoice;
