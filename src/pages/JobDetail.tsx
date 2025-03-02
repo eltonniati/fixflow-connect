@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useJobs } from "@/hooks/use-jobs";
@@ -70,11 +71,10 @@ export default function JobDetail() {
   }
 
   const handlePrintOrPDF = useReactToPrint({
-    content: () => jobCardRef.current,
     documentTitle: `Job_Card_${job?.job_card_number || "unknown"}`,
     onBeforeGetContent: () => {
       setIsPrintReady(true);
-      return new Promise((resolve) => setTimeout(resolve, 200));
+      return new Promise<void>((resolve) => setTimeout(() => resolve(), 200));
     },
     onAfterPrint: () => {
       setIsPrintReady(false);
@@ -290,14 +290,20 @@ export default function JobDetail() {
                     Cancel
                   </Button>
                   <div className="flex gap-2">
-                    <Button onClick={handlePrintOrPDF}>
+                    <Button onClick={() => {
+                      if (jobCardRef.current) {
+                        handlePrintOrPDF();
+                      }
+                    }}>
                       <Printer className="mr-2 h-4 w-4" />
                       Print
                     </Button>
                     <Button 
                       onClick={() => {
-                        handlePrintOrPDF();
-                        toast.info("Select 'Save as PDF' in your print dialog");
+                        if (jobCardRef.current) {
+                          handlePrintOrPDF();
+                          toast.info("Select 'Save as PDF' in your print dialog");
+                        }
                       }}
                       variant="secondary"
                     >
@@ -311,7 +317,7 @@ export default function JobDetail() {
             <Button
               className="w-full"
               onClick={handleFinishAndInvoice}
-              disabled={job.details.status === "Finished" || loading}
+              disabled={job?.details.status === "Finished" || loading}
             >
               <CheckCircle className="mr-2 h-4 w-4" />
               Mark as Finished & Create Invoice
@@ -385,7 +391,10 @@ export default function JobDetail() {
           </Card>
 
           {/* Printable Content */}
-          <div ref={jobCardRef} className="print-content" style={{ display: "none" }}>
+          <div 
+            ref={jobCardRef} 
+            className={isPrintReady ? "print-content" : "hidden print-content"}
+          >
             {isPrintReady && (
               <div className={`p-6 ${printOptions.orientation === "landscape" ? "landscape" : ""}`}>
                 <div className="border-2 border-black p-6">

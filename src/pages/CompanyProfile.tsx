@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/hooks/use-company";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Building } from "lucide-react";
+import { ArrowLeft, Building, Upload, Image } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function CompanyProfile() {
   const { company, loading, updateCompany } = useCompany();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -23,6 +25,8 @@ export default function CompanyProfile() {
   });
   
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (company) {
@@ -33,12 +37,93 @@ export default function CompanyProfile() {
         email: company.email || "",
         logo_url: company.logo_url || ""
       });
+      
+      if (company.logo_url) {
+        setPreviewUrl(company.logo_url);
+      }
     }
   }, [company]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+  
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file");
+      return;
+    }
+    
+    // Validate file size (2MB limit)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be smaller than 2MB");
+      return;
+    }
+    
+    try {
+      setUploading(true);
+      
+      // Create a preview URL
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+      
+      // Upload to Supabase Storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `company_logo_${Date.now()}.${fileExt}`;
+      const filePath = `company_logos/${fileName}`;
+      
+      // Create company_logos bucket if it doesn't exist
+      const { data: bucketExists } = await supabase.storage.getBucket('company_logos');
+      if (!bucketExists) {
+        await supabase.storage.createBucket('company_logos', {
+          public: true,
+          allowedMimeTypes: ['image/png', 'image/jpeg', 'image/gif', 'image/webp'],
+          fileSizeLimit: 2097152, // 2MB
+        });
+      }
+      
+      const { error: uploadError } = await supabase.storage
+        .from('company_logos')
+        .upload(filePath, file, {
+          upsert: true,
+          contentType: file.type
+        });
+        
+      if (uploadError) {
+        throw uploadError;
+      }
+      
+      // Get the public URL
+      const { data } = supabase.storage
+        .from('company_logos')
+        .getPublicUrl(filePath);
+        
+      setFormData(prev => ({ ...prev, logo_url: data.publicUrl }));
+      toast.success("Logo uploaded successfully");
+      
+    } catch (error: any) {
+      console.error("Error uploading logo:", error);
+      toast.error(error.message || "Failed to upload logo");
+      // Revert preview if there was an error
+      if (company?.logo_url) {
+        setPreviewUrl(company.logo_url);
+      } else {
+        setPreviewUrl(null);
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  const triggerFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -110,6 +195,45 @@ export default function CompanyProfile() {
             ) : (
               <>
                 <div className="space-y-2">
+                  <Label htmlFor="logo">Company Logo</Label>
+                  <div className="flex flex-col items-center gap-4 sm:flex-row">
+                    <div className="relative h-32 w-32 rounded-md border border-dashed border-gray-300 flex items-center justify-center bg-gray-50">
+                      {previewUrl ? (
+                        <img 
+                          src={previewUrl} 
+                          alt="Company logo" 
+                          className="h-full w-full object-contain p-2"
+                        />
+                      ) : (
+                        <Image className="h-12 w-12 text-gray-400" />
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2 flex-1">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleLogoUpload}
+                        accept="image/*"
+                        className="hidden"
+                      />
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={triggerFileInput}
+                        disabled={uploading}
+                        className="w-full sm:w-auto"
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        {uploading ? "Uploading..." : "Upload Logo"}
+                      </Button>
+                      <p className="text-xs text-gray-500">
+                        Upload a PNG, JPG, or GIF image (max 2MB)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
                   <Label htmlFor="name">Company Name *</Label>
                   <Input 
                     id="name"
@@ -159,20 +283,6 @@ export default function CompanyProfile() {
                     />
                   </div>
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="logo_url">Logo URL (Optional)</Label>
-                  <Input 
-                    id="logo_url"
-                    name="logo_url"
-                    value={formData.logo_url}
-                    onChange={handleChange}
-                    placeholder="https://example.com/logo.png"
-                  />
-                  <p className="text-xs text-gray-500">
-                    Enter a URL to your company logo (we'll add proper image upload later)
-                  </p>
-                </div>
               </>
             )}
           </CardContent>
@@ -188,7 +298,7 @@ export default function CompanyProfile() {
             </Button>
             <Button
               type="submit"
-              disabled={loading || submitting}
+              disabled={loading || submitting || uploading}
             >
               {submitting ? "Saving..." : (company ? "Update Profile" : "Save Profile")}
             </Button>
