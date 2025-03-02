@@ -7,7 +7,7 @@ import { Invoice, InvoiceLineItem, InvoiceTax, Job, DatabaseInvoice } from "@/li
 import { v4 as uuidv4 } from "uuid";
 
 // Helper functions for mapping between database and frontend models
-const mapDatabaseInvoiceToInvoice = (dbInvoice: DatabaseInvoice): Invoice => {
+const mapDatabaseInvoiceToInvoice = (dbInvoice: any): Invoice => {
   return {
     id: dbInvoice.id,
     invoice_number: dbInvoice.invoice_number || `INV-${dbInvoice.id.substring(0, 8)}`,
@@ -126,11 +126,12 @@ export function useInvoiceDetails() {
 
       if (error) throw error;
       
+      // Use type assertion for the database response
       // Manually construct the full invoice object since the database might not return all fields
       const formattedInvoice: Invoice = {
         ...newInvoice,
         id: data.id,
-        invoice_number: data.invoice_number || `INV-${data.id.substring(0, 8)}`,
+        invoice_number: `INV-${data.id.substring(0, 8)}`,
         created_at: data.created_at
       };
       
@@ -162,9 +163,8 @@ export function useInvoiceDetails() {
       
       if (!data) return null;
 
-      // Cast the data to DatabaseInvoice to ensure type safety
-      const dbInvoice = data as DatabaseInvoice;
-      const formattedInvoice = mapDatabaseInvoiceToInvoice(dbInvoice);
+      // Use type assertion and mapping function
+      const formattedInvoice = mapDatabaseInvoiceToInvoice(data);
       
       setInvoice(formattedInvoice);
       return formattedInvoice;

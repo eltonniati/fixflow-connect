@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
@@ -24,7 +23,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { DatePicker } from "@/components/ui/date-picker";
 import { 
   ArrowLeft, 
   Plus, 
@@ -118,8 +116,8 @@ const InvoiceForm = () => {
     
     if (field === 'quantity' || field === 'unit_price') {
       updates[field] = Number(value);
-    } else {
-      updates[field] = value as any;
+    } else if (field === 'description') {
+      updates[field] = value as string;
     }
     
     updateLineItem(id, updates);
