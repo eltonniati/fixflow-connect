@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useJobs } from "@/hooks/use-jobs";
@@ -32,12 +31,57 @@ import { ArrowLeft, PlusCircle, Search, Calendar, Printer } from "lucide-react";
 import { format } from "date-fns";
 import type { JobStatus } from "@/lib/types";
 
+const PrintableJobCards = ({ jobs }: { jobs: any[] }) => {
+  const formatCurrency = (amount: number = 0) => {
+    return new Intl.NumberFormat('en-ZA', {
+      style: 'currency',
+      currency: 'ZAR',
+    }).format(amount);
+  };
+  
+  const getStatusColor = (status: JobStatus) => {
+    switch (status) {
+      case "In Progress":
+        return "bg-blue-100 text-blue-800";
+      case "Finished":
+        return "bg-green-100 text-green-800";
+      case "Waiting for Parts":
+        return "bg-amber-100 text-amber-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  return (
+    <div className="p-4 hidden print:block">
+      <div className="grid grid-cols-2 gap-4 print:grid-cols-2">
+        {jobs.map((job) => (
+          <div key={job.id} className="print-card">
+            <h2 className="text-xl font-bold mb-2">Job Card #{job.job_card_number}</h2>
+            <div className="space-y-1">
+              <p><strong>Customer:</strong> {job.customer.name}</p>
+              <p><strong>Device:</strong> {job.device.name} {job.device.model}</p>
+              <p><strong>Date:</strong> {format(new Date(job.created_at!), "MMM d, yyyy")}</p>
+              <p><strong>Price:</strong> {formatCurrency(job.details.handling_fees)}</p>
+              <p><strong>Status:</strong> 
+                <Badge className={`${getStatusColor(job.details.status as JobStatus)} ml-2`}>
+                  {job.details.status}
+                </Badge>
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function JobCards() {
   const { jobs, loading } = useJobs();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<JobStatus | "all">("all");
-  const componentRef = useRef<HTMLDivElement>(null);
+  const componentRef = useRef(null);
 
   const formatCurrency = (amount: number = 0) => {
     return new Intl.NumberFormat('en-ZA', {
@@ -95,28 +139,11 @@ export default function JobCards() {
     }
   };
 
-  const PrintableContent = () => (
-    <div ref={componentRef} className="p-4 hidden print:block">
-      <div className="grid grid-cols-2 gap-4 print:grid-cols-2">
-        {filteredJobs.map((job) => (
-          <div key={job.id} className="print-card">
-            <h2 className="text-xl font-bold mb-2">Job Card #{job.job_card_number}</h2>
-            <div className="space-y-1">
-              <p><strong>Customer:</strong> {job.customer.name}</p>
-              <p><strong>Device:</strong> {job.device.name} {job.device.model}</p>
-              <p><strong>Date:</strong> {format(new Date(job.created_at!), "MMM d, yyyy")}</p>
-              <p><strong>Price:</strong> {formatCurrency(job.details.handling_fees)}</p>
-              <p><strong>Status:</strong> 
-                <Badge className={`${getStatusColor(job.details.status as JobStatus)} ml-2`}>
-                  {job.details.status}
-                </Badge>
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  const printJobs = () => {
+    if (componentRef.current) {
+      handlePrint();
+    }
+  };
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8 w-full max-w-7xl mx-auto">
@@ -140,11 +167,7 @@ export default function JobCards() {
             New Job Card
           </Button>
           <Button 
-            onClick={() => {
-              if (componentRef.current) {
-                handlePrint(componentRef.current);
-              }
-            }} 
+            onClick={printJobs} 
             variant="outline"
           >
             <Printer className="mr-2 h-4 w-4" />
@@ -283,8 +306,11 @@ export default function JobCards() {
         </CardContent>
       </Card>
 
-      {/* Hidden printable content */}
-      <PrintableContent />
+      <div style={{ display: "none" }}>
+        <div ref={componentRef}>
+          <PrintableJobCards jobs={filteredJobs} />
+        </div>
+      </div>
     </div>
   );
 }

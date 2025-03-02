@@ -36,7 +36,7 @@ export interface Job {
   details: JobDetails;
   created_at?: string;
   updated_at?: string;
-  price?: number; // Added price property
+  price?: number; // This matches handling_fees for backward compatibility
 }
 
 export interface Invoice {

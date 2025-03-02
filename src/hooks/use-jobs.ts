@@ -5,99 +5,105 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import type { Job, JobStatus, Customer, Device, JobDetails } from "@/lib/types";
 
+// Helper functions for mapping between database and frontend models
+const mapDatabaseJobToJob = (dbJob: any): Job => {
+  return {
+    id: dbJob.id,
+    job_card_number: dbJob.job_card_number,
+    customer: {
+      name: dbJob.customer_name,
+      phone: dbJob.customer_phone,
+      email: dbJob.customer_email || undefined
+    },
+    device: {
+      name: dbJob.device_name,
+      model: dbJob.device_model,
+      condition: dbJob.device_condition
+    },
+    details: {
+      problem: dbJob.problem,
+      status: dbJob.status as JobStatus,
+      handling_fees: dbJob.handling_fees
+    },
+    created_at: dbJob.created_at,
+    updated_at: dbJob.updated_at,
+    price: dbJob.handling_fees // Map handling_fees to price for backward compatibility
+  };
+};
+
+const mapJobToDatabaseJob = (job: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>, userId: string) => {
+  return {
+    customer_name: job.customer.name,
+    customer_phone: job.customer.phone,
+    customer_email: job.customer.email || null,
+    device_name: job.device.name,
+    device_model: job.device.model,
+    device_condition: job.device.condition,
+    problem: job.details.problem,
+    status: job.details.status,
+    handling_fees: job.details.handling_fees,
+    job_card_number: '', // Will be set by database trigger
+    user_id: userId
+  };
+};
+
 export function useJobs() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Map database job to our frontend Job type
-  const mapDatabaseJobToJob = (dbJob: any): Job => {
-    return {
-      id: dbJob.id,
-      job_card_number: dbJob.job_card_number,
-      customer: {
-        name: dbJob.customer_name,
-        phone: dbJob.customer_phone,
-        email: dbJob.customer_email || undefined
-      },
-      device: {
-        name: dbJob.device_name,
-        model: dbJob.device_model,
-        condition: dbJob.device_condition
-      },
-      details: {
-        problem: dbJob.problem,
-        status: dbJob.status as JobStatus,
-        handling_fees: dbJob.handling_fees
-      },
-      created_at: dbJob.created_at,
-      updated_at: dbJob.updated_at
-    };
-  };
-
-  // Map our frontend Job type to database job
-  const mapJobToDatabaseJob = (job: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>) => {
-    return {
-      customer_name: job.customer.name,
-      customer_phone: job.customer.phone,
-      customer_email: job.customer.email || null,
-      device_name: job.device.name,
-      device_model: job.device.model,
-      device_condition: job.device.condition,
-      problem: job.details.problem,
-      status: job.details.status,
-      handling_fees: job.details.handling_fees,
-      job_card_number: '', // Adding this field with an empty string, it will be overwritten by the supabase trigger
-      user_id: user?.id
-    };
-  };
-
-  useEffect(() => {
+  const fetchJobs = async () => {
     if (!user) {
       setLoading(false);
       return;
     }
 
-    const fetchJobs = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("jobs")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        const formattedJobs = (data || []).map(mapDatabaseJobToJob);
-        setJobs(formattedJobs);
-      } catch (error: any) {
-        console.error("Error fetching jobs:", error);
-        toast.error(error.message || "Failed to fetch jobs");
-      } finally {
-        setLoading(false);
-      }
-    };
+      const formattedJobs = (data || []).map(mapDatabaseJobToJob);
+      setJobs(formattedJobs);
+    } catch (error: any) {
+      console.error("Error fetching jobs:", error);
+      toast.error(error.message || "Failed to fetch jobs");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchJobs();
 
     // Subscribe to changes in the jobs table
-    const jobsSubscription = supabase
-      .channel('jobs-channel')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'jobs',
-          filter: `user_id=eq.${user.id}`
-        }, 
-        () => {
-          fetchJobs();
-        }
-      )
-      .subscribe();
+    const setupSubscription = () => {
+      if (!user) return null;
+
+      return supabase
+        .channel('jobs-channel')
+        .on('postgres_changes', 
+          { 
+            event: '*', 
+            schema: 'public', 
+            table: 'jobs',
+            filter: `user_id=eq.${user.id}`
+          }, 
+          () => {
+            fetchJobs();
+          }
+        )
+        .subscribe();
+    };
+
+    const subscription = setupSubscription();
 
     return () => {
-      jobsSubscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, [user]);
 
@@ -107,7 +113,7 @@ export function useJobs() {
     try {
       setLoading(true);
 
-      const dbJobData = mapJobToDatabaseJob(jobData);
+      const dbJobData = mapJobToDatabaseJob(jobData, user.id);
 
       const { data, error } = await supabase
         .from("jobs")
@@ -212,5 +218,5 @@ export function useJobs() {
     }
   };
 
-  return { jobs, loading, createJob, updateJob, updateJobStatus, getJob };
+  return { jobs, loading, createJob, updateJob, updateJobStatus, getJob, fetchJobs };
 }
