@@ -58,8 +58,8 @@ export default function JobDetail() {
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-ZA", {
-      style: "currency",
-      currency: "ZAR",
+      style: 'currency',
+      currency: 'ZAR',
     }).format(amount);
   };
 
@@ -72,14 +72,6 @@ export default function JobDetail() {
 
   const handlePrintOrPDF = useReactToPrint({
     documentTitle: `Job_Card_${job?.job_card_number || "unknown"}`,
-    onBeforeGetContent: () => {
-      setIsPrintReady(true);
-      return new Promise<void>((resolve) => setTimeout(() => resolve(), 200));
-    },
-    onAfterPrint: () => {
-      setIsPrintReady(false);
-      setIsPrintDialogOpen(false);
-    },
     pageStyle: `
       @page {
         size: A4 ${printOptions.orientation};
@@ -96,6 +88,10 @@ export default function JobDetail() {
         display: none !important;
       }
     `,
+    onPrintError: (errorLocation, error) => {
+      console.error('Print error:', errorLocation, error);
+      toast.error('Printing failed. Please try again.');
+    },
     removeAfterPrint: true,
   });
 
@@ -291,19 +287,27 @@ export default function JobDetail() {
                   </Button>
                   <div className="flex gap-2">
                     <Button onClick={() => {
-                      if (jobCardRef.current) {
-                        handlePrintOrPDF();
-                      }
+                      setIsPrintReady(true);
+                      setTimeout(() => {
+                        if (jobCardRef.current) {
+                          handlePrintOrPDF(jobCardRef.current);
+                          setTimeout(() => setIsPrintReady(false), 500);
+                        }
+                      }, 200);
                     }}>
                       <Printer className="mr-2 h-4 w-4" />
                       Print
                     </Button>
                     <Button 
                       onClick={() => {
-                        if (jobCardRef.current) {
-                          handlePrintOrPDF();
-                          toast.info("Select 'Save as PDF' in your print dialog");
-                        }
+                        setIsPrintReady(true);
+                        setTimeout(() => {
+                          if (jobCardRef.current) {
+                            handlePrintOrPDF(jobCardRef.current);
+                            toast.info("Select 'Save as PDF' in your print dialog");
+                            setTimeout(() => setIsPrintReady(false), 500);
+                          }
+                        }, 200);
                       }}
                       variant="secondary"
                     >

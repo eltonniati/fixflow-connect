@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useJobs } from "@/hooks/use-jobs";
@@ -38,7 +39,7 @@ export default function JobCards() {
   const [statusFilter, setStatusFilter] = useState<JobStatus | "all">("all");
   const componentRef = useRef<HTMLDivElement>(null);
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number = 0) => {
     return new Intl.NumberFormat('en-ZA', {
       style: 'currency',
       currency: 'ZAR',
@@ -46,7 +47,6 @@ export default function JobCards() {
   };
 
   const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
     documentTitle: "Job Cards Report",
     pageStyle: `
       @page {
@@ -105,7 +105,7 @@ export default function JobCards() {
               <p><strong>Customer:</strong> {job.customer.name}</p>
               <p><strong>Device:</strong> {job.device.name} {job.device.model}</p>
               <p><strong>Date:</strong> {format(new Date(job.created_at!), "MMM d, yyyy")}</p>
-              <p><strong>Price:</strong> {formatCurrency(job.price)}</p>
+              <p><strong>Price:</strong> {formatCurrency(job.details.handling_fees)}</p>
               <p><strong>Status:</strong> 
                 <Badge className={`${getStatusColor(job.details.status as JobStatus)} ml-2`}>
                   {job.details.status}
@@ -139,7 +139,14 @@ export default function JobCards() {
             <PlusCircle className="mr-2 h-4 w-4" />
             New Job Card
           </Button>
-          <Button onClick={handlePrint} variant="outline">
+          <Button 
+            onClick={() => {
+              if (componentRef.current) {
+                handlePrint(componentRef.current);
+              }
+            }} 
+            variant="outline"
+          >
             <Printer className="mr-2 h-4 w-4" />
             Print All
           </Button>
@@ -228,7 +235,7 @@ export default function JobCards() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {formatCurrency(job.price)}
+                        {formatCurrency(job.details.handling_fees)}
                       </TableCell>
                       <TableCell>
                         <Badge className={getStatusColor(job.details.status as JobStatus)}>
