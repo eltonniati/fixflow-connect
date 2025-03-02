@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import type { Job, JobStatus, Customer, Device, JobDetails } from "@/lib/types";
+import type { Job, JobStatus } from "@/lib/types";
 
 // Helper functions for mapping between database and frontend models
 const mapDatabaseJobToJob = (dbJob: any): Job => {
@@ -51,6 +51,7 @@ export function useJobs() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [job, setJob] = useState<Job | null>(null);
 
   const fetchJobs = async () => {
     if (!user) {
@@ -173,6 +174,7 @@ export function useJobs() {
       if (error) throw error;
       
       const formattedJob = mapDatabaseJobToJob(data);
+      setJob(formattedJob);
       setJobs(prevJobs => 
         prevJobs.map(job => job.id === id ? formattedJob : job)
       );
@@ -201,6 +203,7 @@ export function useJobs() {
     if (!user) return null;
 
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from("jobs")
         .select("*")
@@ -210,13 +213,52 @@ export function useJobs() {
 
       if (error) throw error;
       
-      return mapDatabaseJobToJob(data);
+      const formattedJob = mapDatabaseJobToJob(data);
+      setJob(formattedJob);
+      return formattedJob;
     } catch (error: any) {
       console.error("Error fetching job:", error);
       toast.error(error.message || "Failed to fetch job");
       return null;
+    } finally {
+      setLoading(false);
     }
   };
 
-  return { jobs, loading, createJob, updateJob, updateJobStatus, getJob, fetchJobs };
+  const deleteJob = async (id: string) => {
+    if (!user) return false;
+
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from("jobs")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+      
+      setJobs(prevJobs => prevJobs.filter(job => job.id !== id));
+      setJob(null);
+      return true;
+    } catch (error: any) {
+      console.error("Error deleting job:", error);
+      toast.error(error.message || "Failed to delete job");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { 
+    jobs, 
+    job,
+    loading, 
+    createJob, 
+    updateJob, 
+    updateJobStatus, 
+    getJob,
+    deleteJob,
+    fetchJobs
+  };
 }

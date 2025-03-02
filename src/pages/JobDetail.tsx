@@ -1,24 +1,18 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { ArrowLeft, Edit, Printer, Plus, Trash2, CheckCircle, AlertTriangle } from "lucide-react";
+  ArrowLeft, Edit, Printer, Trash2
+} from "lucide-react";
 import { toast } from "sonner";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCompanies } from "@/hooks/use-companies";
@@ -33,6 +27,95 @@ const formatCurrency = (amount: number) => {
     currency: 'ZAR',
   }).format(amount);
 };
+
+// Printable Job Card Component
+const PrintableJobCard = ({ 
+  job, 
+  customerName, 
+  customerPhone, 
+  customerEmail, 
+  deviceName, 
+  deviceModel, 
+  deviceCondition, 
+  problem,
+  handlingFees,
+  companyName
+}: { 
+  job: any, 
+  customerName: string,
+  customerPhone: string,
+  customerEmail: string,
+  deviceName: string,
+  deviceModel: string,
+  deviceCondition: string,
+  problem: string,
+  handlingFees: number,
+  companyName: string
+}) => (
+  <div className="p-6 bg-white">
+    <div className="border-2 border-gray-200 p-6">
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h1 className="text-3xl font-bold">JOB CARD</h1>
+          <p className="text-lg font-medium">#{job?.job_card_number}</p>
+        </div>
+        <div className="text-right">
+          <p><strong>Created Date:</strong> {format(new Date(job?.created_at || new Date()), "MMMM d, yyyy")}</p>
+          <p><strong>Status:</strong> {job?.details.status}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6 mb-8">
+        <div>
+          <h2 className="text-lg font-semibold border-b mb-2">Company</h2>
+          <p>{companyName}</p>
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold border-b mb-2">Customer</h2>
+          <p>{customerName}</p>
+          <p>{customerPhone}</p>
+          <p>{customerEmail}</p>
+        </div>
+      </div>
+
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold border-b mb-2">Device</h2>
+        <p><strong>Name:</strong> {deviceName}</p>
+        <p><strong>Model:</strong> {deviceModel}</p>
+        <p><strong>Condition:</strong> {deviceCondition}</p>
+      </div>
+
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold border-b mb-2">Details</h2>
+        <p><strong>Problem:</strong> {problem}</p>
+        <p><strong>Handling Fees:</strong> {formatCurrency(handlingFees)}</p>
+      </div>
+
+      <div className="mt-6 text-sm text-center border-t pt-2">
+        <p>Generated on: {format(new Date(), "MMMM d, yyyy HH:mm")}</p>
+      </div>
+    </div>
+  </div>
+);
+
+// Input change handler component to fix TypeScript errors
+type InputChangeHandlerProps = {
+  value: string;
+  onChange: (value: string) => void;
+  id: string;
+  placeholder?: string;
+  type?: string;
+};
+
+const TextInput = ({ value, onChange, id, placeholder, type = "text" }: InputChangeHandlerProps) => (
+  <Input
+    id={id}
+    type={type}
+    value={value}
+    onChange={(e) => onChange(e.target.value)}
+    placeholder={placeholder}
+  />
+);
 
 const JobDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -79,12 +162,6 @@ const JobDetail = () => {
 
   const handleEditToggle = () => {
     setIsEditMode(!isEditMode);
-  };
-
-  const handleInputChange = (
-    setter: (value: string | number) => void
-  ) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setter(e.target.value);
   };
 
   const handleStatusChange = (status: JobStatus) => {
@@ -138,16 +215,10 @@ const JobDetail = () => {
     setIsDeleteDialogOpen(false);
   };
 
-  const handlePrintOrPDF = useReactToPrint({
-    documentTitle: `JobCard_${job?.job_card_number || "unknown"}`,
-    onAfterPrint: () => {
-      setIsPrintReady(false);
-    },
-  });
-
   const handlePrint = () => {
     setIsPrintDialogOpen(false);
     setIsPrintReady(true);
+    
     setTimeout(() => {
       if (jobCardRef.current) {
         handlePrintOrPDF();
@@ -155,53 +226,12 @@ const JobDetail = () => {
     }, 200);
   };
 
-  // Printable Job Card Component
-  const PrintableJobCard = () => (
-    <div className="p-6 bg-white">
-      <div className="border-2 border-gray-200 p-6">
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">JOB CARD</h1>
-            <p className="text-lg font-medium">#{job?.job_card_number}</p>
-          </div>
-          <div className="text-right">
-            <p><strong>Created Date:</strong> {format(new Date(job?.created_at || new Date()), "MMMM d, yyyy")}</p>
-            <p><strong>Status:</strong> {job?.details.status}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-6 mb-8">
-          <div>
-            <h2 className="text-lg font-semibold border-b mb-2">Company</h2>
-            <p>{editedCompanyName}</p>
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold border-b mb-2">Customer</h2>
-            <p>{editedCustomerName}</p>
-            <p>{editedCustomerPhone}</p>
-            <p>{editedCustomerEmail}</p>
-          </div>
-        </div>
-
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold border-b mb-2">Device</h2>
-          <p><strong>Name:</strong> {editedDeviceName}</p>
-          <p><strong>Model:</strong> {editedDeviceModel}</p>
-          <p><strong>Condition:</strong> {editedDeviceCondition}</p>
-        </div>
-
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold border-b mb-2">Details</h2>
-          <p><strong>Problem:</strong> {editedProblem}</p>
-          <p><strong>Handling Fees:</strong> {formatCurrency(editedHandlingFees)}</p>
-        </div>
-
-        <div className="mt-6 text-sm text-center border-t pt-2">
-          <p>Generated on: {format(new Date(), "MMMM d, yyyy HH:mm")}</p>
-        </div>
-      </div>
-    </div>
-  );
+  const handlePrintOrPDF = useReactToPrint({
+    documentTitle: `JobCard_${job?.job_card_number || "unknown"}`,
+    onAfterPrint: () => {
+      setIsPrintReady(false);
+    },
+  });
 
   if (loading || !job) {
     return (
@@ -254,10 +284,10 @@ const JobDetail = () => {
               <div className="space-y-2">
                 <Label htmlFor="company-name">Company</Label>
                 {isEditMode ? (
-                  <Input
+                  <TextInput
                     id="company-name"
                     value={editedCompanyName}
-                    onChange={handleInputChange(setEditedCompanyName)}
+                    onChange={setEditedCompanyName}
                   />
                 ) : (
                   <p>{editedCompanyName}</p>
@@ -268,10 +298,10 @@ const JobDetail = () => {
               <div className="space-y-2">
                 <Label htmlFor="customer-name">Customer Name</Label>
                 {isEditMode ? (
-                  <Input
+                  <TextInput
                     id="customer-name"
                     value={editedCustomerName}
-                    onChange={handleInputChange(setEditedCustomerName)}
+                    onChange={setEditedCustomerName}
                   />
                 ) : (
                   <p>{editedCustomerName}</p>
@@ -284,10 +314,10 @@ const JobDetail = () => {
               <div className="space-y-2">
                 <Label htmlFor="customer-phone">Customer Phone</Label>
                 {isEditMode ? (
-                  <Input
+                  <TextInput
                     id="customer-phone"
                     value={editedCustomerPhone}
-                    onChange={handleInputChange(setEditedCustomerPhone)}
+                    onChange={setEditedCustomerPhone}
                   />
                 ) : (
                   <p>{editedCustomerPhone}</p>
@@ -298,11 +328,11 @@ const JobDetail = () => {
               <div className="space-y-2">
                 <Label htmlFor="customer-email">Customer Email</Label>
                 {isEditMode ? (
-                  <Input
+                  <TextInput
                     id="customer-email"
                     type="email"
                     value={editedCustomerEmail}
-                    onChange={handleInputChange(setEditedCustomerEmail)}
+                    onChange={setEditedCustomerEmail}
                   />
                 ) : (
                   <p>{editedCustomerEmail || "N/A"}</p>
@@ -315,10 +345,10 @@ const JobDetail = () => {
               <div className="space-y-2">
                 <Label htmlFor="device-name">Device Name</Label>
                 {isEditMode ? (
-                  <Input
+                  <TextInput
                     id="device-name"
                     value={editedDeviceName}
-                    onChange={handleInputChange(setEditedDeviceName)}
+                    onChange={setEditedDeviceName}
                   />
                 ) : (
                   <p>{editedDeviceName}</p>
@@ -329,10 +359,10 @@ const JobDetail = () => {
               <div className="space-y-2">
                 <Label htmlFor="device-model">Device Model</Label>
                 {isEditMode ? (
-                  <Input
+                  <TextInput
                     id="device-model"
                     value={editedDeviceModel}
-                    onChange={handleInputChange(setEditedDeviceModel)}
+                    onChange={setEditedDeviceModel}
                   />
                 ) : (
                   <p>{editedDeviceModel}</p>
@@ -344,10 +374,10 @@ const JobDetail = () => {
             <div className="space-y-2">
               <Label htmlFor="device-condition">Device Condition</Label>
               {isEditMode ? (
-                <Input
+                <TextInput
                   id="device-condition"
                   value={editedDeviceCondition}
-                  onChange={handleInputChange(setEditedDeviceCondition)}
+                  onChange={setEditedDeviceCondition}
                 />
               ) : (
                 <p>{editedDeviceCondition}</p>
@@ -361,7 +391,7 @@ const JobDetail = () => {
                 <Textarea
                   id="problem-description"
                   value={editedProblem}
-                  onChange={handleInputChange(setEditedProblem)}
+                  onChange={(e) => setEditedProblem(e.target.value)}
                 />
               ) : (
                 <p>{editedProblem}</p>
@@ -422,7 +452,7 @@ const JobDetail = () => {
               <Printer className="mr-2 h-4 w-4" />
               Print Job Card
             </Button>
-            <Link to={`/invoices/new/${job.id}`}>
+            <Link to={`/invoices/new/${job.id}`} className="w-full">
               <Button className="w-full">
                 Create Invoice
               </Button>
@@ -480,7 +510,20 @@ const JobDetail = () => {
 
       {/* Printable Job Card (hidden) */}
       <div ref={jobCardRef} className={isPrintReady ? "print-content" : "hidden print-content"}>
-        {isPrintReady && <PrintableJobCard />}
+        {isPrintReady && (
+          <PrintableJobCard 
+            job={job}
+            customerName={editedCustomerName}
+            customerPhone={editedCustomerPhone}
+            customerEmail={editedCustomerEmail}
+            deviceName={editedDeviceName}
+            deviceModel={editedDeviceModel}
+            deviceCondition={editedDeviceCondition}
+            problem={editedProblem}
+            handlingFees={editedHandlingFees}
+            companyName={editedCompanyName}
+          />
+        )}
       </div>
     </div>
   );

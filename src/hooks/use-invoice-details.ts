@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -125,7 +126,8 @@ export function useInvoiceDetails() {
 
       if (error) throw error;
       
-      const formattedInvoice = {
+      // Manually construct the full invoice object since the database might not return all fields
+      const formattedInvoice: Invoice = {
         ...newInvoice,
         id: data.id,
         invoice_number: data.invoice_number || `INV-${data.id.substring(0, 8)}`,
