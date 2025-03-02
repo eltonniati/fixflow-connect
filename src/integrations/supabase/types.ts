@@ -48,6 +48,8 @@ export type Database = {
           bill_description: string
           created_at: string
           id: string
+          invoice_data: Json | null
+          invoice_number: string | null
           job_id: string
           total: number
         }
@@ -56,6 +58,8 @@ export type Database = {
           bill_description: string
           created_at?: string
           id?: string
+          invoice_data?: Json | null
+          invoice_number?: string | null
           job_id: string
           total: number
         }
@@ -64,6 +68,8 @@ export type Database = {
           bill_description?: string
           created_at?: string
           id?: string
+          invoice_data?: Json | null
+          invoice_number?: string | null
           job_id?: string
           total?: number
         }

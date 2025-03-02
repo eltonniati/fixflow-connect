@@ -108,6 +108,7 @@ export function useInvoiceDetails() {
           bill_description: newInvoice.bill_description,
           bill_amount: newInvoice.bill_amount,
           total: newInvoice.total,
+          invoice_number: `INV-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
           // Store the extended data as JSON
           invoice_data: {
             status: newInvoice.status,
@@ -131,7 +132,7 @@ export function useInvoiceDetails() {
       const formattedInvoice: Invoice = {
         ...newInvoice,
         id: data.id,
-        invoice_number: `INV-${data.id.substring(0, 8)}`,
+        invoice_number: data.invoice_number || `INV-${data.id.substring(0, 8)}`,
         created_at: data.created_at
       };
       
@@ -215,6 +216,7 @@ export function useInvoiceDetails() {
           bill_description: updatedInvoice.bill_description,
           bill_amount: updatedInvoice.bill_amount,
           total: updatedInvoice.total,
+          invoice_number: updatedInvoice.invoice_number,
           invoice_data: {
             status: updatedInvoice.status,
             issue_date: updatedInvoice.issue_date,
