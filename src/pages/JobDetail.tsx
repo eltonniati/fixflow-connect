@@ -1,7 +1,7 @@
-
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useJobs } from "@/hooks/use-jobs";
+import { useInvoices } from "@/hooks/use-invoices";
 import { useReactToPrint } from "react-to-print";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,12 +32,12 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, Printer, CheckCircle, FileText } from "lucide-react";
+import { ArrowLeft, Printer, CheckCircle, FileText, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { JobStatus, Job } from "@/lib/types";
+import { JobStatus, Job, Invoice } from "@/lib/types";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-// Helper functions
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-ZA", {
     style: 'currency',
@@ -58,7 +58,6 @@ const getStatusColor = (status: JobStatus) => {
   }
 };
 
-// PrintOptions interface
 interface PrintOptions {
   includeCustomer: boolean;
   includeDevice: boolean;
@@ -68,7 +67,6 @@ interface PrintOptions {
   customNotes: string;
 }
 
-// Printable Job Card component
 const PrintableJobCard = ({ 
   job, 
   options 
@@ -144,18 +142,21 @@ const PrintableJobCard = ({
   );
 };
 
-// Job Actions component
 const JobActions = ({ 
   job, 
+  invoices,
   onStatusChange, 
   onPrint, 
   onFinish, 
+  onCreateInvoice,
   loading 
 }: { 
   job: Job;
+  invoices: Invoice[];
   onStatusChange: (status: JobStatus) => void; 
   onPrint: () => void;
   onFinish: () => void;
+  onCreateInvoice: () => void;
   loading: boolean;
 }) => {
   return (
@@ -196,12 +197,19 @@ const JobActions = ({
           <CheckCircle className="mr-2 h-4 w-4" />
           Mark as Finished & Create Invoice
         </Button>
+        <Button
+          className="w-full"
+          variant="secondary"
+          onClick={onCreateInvoice}
+        >
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Create New Invoice
+        </Button>
       </CardFooter>
     </Card>
   );
 };
 
-// Job Info component
 const JobInfo = ({ job }: { job: Job }) => {
   return (
     <Card className="mb-4 no-print">
@@ -268,7 +276,100 @@ const JobInfo = ({ job }: { job: Job }) => {
   );
 };
 
-// Print Dialog Component
+const JobInvoices = ({ 
+  invoices, 
+  onViewInvoice 
+}: { 
+  invoices: Invoice[];
+  onViewInvoice: (invoiceId: string) => void;
+}) => {
+  if (invoices.length === 0) {
+    return (
+      <Card className="mb-4 no-print">
+        <CardHeader>
+          <CardTitle>Invoices</CardTitle>
+          <CardDescription>No invoices yet for this job</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-6">
+            <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">
+              No invoices have been created for this job yet
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const getInvoiceStatusColor = (status: string) => {
+    switch (status) {
+      case "Draft":
+        return "bg-gray-100 text-gray-800";
+      case "Sent":
+        return "bg-blue-100 text-blue-800";
+      case "Paid":
+        return "bg-green-100 text-green-800";
+      case "Overdue":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  return (
+    <Card className="mb-4 no-print">
+      <CardHeader>
+        <CardTitle>Invoices</CardTitle>
+        <CardDescription>Invoices created for this job</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Invoice #</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {invoices.map((invoice) => (
+              <TableRow 
+                key={invoice.id}
+                className="cursor-pointer"
+                onClick={() => onViewInvoice(invoice.id!)}
+              >
+                <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
+                <TableCell>
+                  <Badge className={getInvoiceStatusColor(invoice.status)}>
+                    {invoice.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
+                <TableCell>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onViewInvoice(invoice.id!);
+                    }}
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+};
+
 const PrintDialog = ({ 
   open, 
   onOpenChange, 
@@ -392,7 +493,6 @@ const PrintDialog = ({
   );
 };
 
-// NotFound component
 const JobNotFound = ({ onBack }: { onBack: () => void }) => {
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
@@ -415,28 +515,41 @@ const JobNotFound = ({ onBack }: { onBack: () => void }) => {
   );
 };
 
-// Main component
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { jobs, updateJobStatus } = useJobs();
+  const { getInvoicesForJob } = useInvoices();
   const [loading, setLoading] = useState(false);
+  const [jobInvoices, setJobInvoices] = useState<Invoice[]>([]);
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const [isPrintReady, setIsPrintReady] = useState(false);
   const jobCardRef = useRef<HTMLDivElement>(null);
 
-  const [printOptions, setPrintOptions] = useState<PrintOptions>({
+  const [printOptions, setPrintOptions] = useState({
     includeCustomer: true,
     includeDevice: true,
     includeProblem: true,
     includeFees: true,
-    orientation: "portrait",
+    orientation: "portrait" as "portrait" | "landscape",
     customNotes: "",
   });
 
   const job = jobs.find((job) => job.id === id);
 
+  useEffect(() => {
+    const loadInvoices = async () => {
+      if (id) {
+        const invoices = await getInvoicesForJob(id);
+        setJobInvoices(invoices);
+      }
+    };
+    
+    loadInvoices();
+  }, [id]);
+
   const handlePrintOrPDF = useReactToPrint({
+    content: () => jobCardRef.current,
     documentTitle: `Job_Card_${job?.job_card_number || "unknown"}`,
     pageStyle: `
       @page {
@@ -454,10 +567,6 @@ export default function JobDetail() {
         display: none !important;
       }
     `,
-    onPrintError: (errorLocation, error) => {
-      console.error('Print error:', errorLocation, error);
-      toast.error('Printing failed. Please try again.');
-    },
     onAfterPrint: () => {
       setIsPrintReady(false);
     },
@@ -482,12 +591,16 @@ export default function JobDetail() {
     if (!id) return;
     handleStatusChange("Finished");
     toast.success("Job marked as finished");
-    toast("Redirecting to invoice creation...", {
-      duration: 2000,
-      onAutoClose: () => {
-        toast.info("Invoice functionality coming soon");
-      },
-    });
+    navigate(`/invoices/new/${id}`);
+  };
+
+  const handleCreateInvoice = () => {
+    if (!id) return;
+    navigate(`/invoices/new/${id}`);
+  };
+
+  const handleViewInvoice = (invoiceId: string) => {
+    navigate(`/invoices/${invoiceId}`);
   };
 
   const handlePrintClick = () => {
@@ -526,21 +639,22 @@ export default function JobDetail() {
       </Button>
 
       <div className="grid gap-8 md:grid-cols-3">
-        {/* Job Actions Card */}
         <JobActions 
           job={job} 
+          invoices={jobInvoices}
           onStatusChange={handleStatusChange}
           onPrint={handlePrintClick}
           onFinish={handleFinishAndInvoice}
+          onCreateInvoice={handleCreateInvoice}
           loading={loading}
         />
 
-        {/* Job Details */}
         <div className="md:col-span-2">
-          {/* Visible Card */}
           <JobInfo job={job} />
-
-          {/* Print Dialog */}
+          <JobInvoices 
+            invoices={jobInvoices} 
+            onViewInvoice={handleViewInvoice} 
+          />
           <PrintDialog 
             open={isPrintDialogOpen}
             onOpenChange={setIsPrintDialogOpen}
@@ -549,8 +663,6 @@ export default function JobDetail() {
             onPrint={handlePrint}
             onPDF={handlePDF}
           />
-
-          {/* Printable Content */}
           <div 
             ref={jobCardRef} 
             className={isPrintReady ? "print-content" : "hidden print-content"}

@@ -39,12 +39,36 @@ export interface Job {
   price?: number; // This matches handling_fees for backward compatibility
 }
 
+export interface InvoiceLineItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+}
+
+export interface InvoiceTax {
+  name: string;
+  rate: number;
+  amount: number;
+}
+
 export interface Invoice {
   id?: string;
+  invoice_number?: string;
   job_id: string;
   bill_description: string;
+  status: "Draft" | "Sent" | "Paid" | "Overdue";
+  issue_date: string;
+  due_date: string;
+  line_items: InvoiceLineItem[];
+  taxes: InvoiceTax[];
+  subtotal: number;
+  tax_total: number;
   bill_amount: number;
   total: number;
+  notes?: string;
+  terms?: string;
   created_at?: string;
 }
 

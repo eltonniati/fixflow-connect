@@ -11,6 +11,9 @@ import CompanyProfile from "./pages/CompanyProfile";
 import JobCards from "./pages/JobCards";
 import CreateJobCard from "./pages/CreateJobCard";
 import JobDetail from "./pages/JobDetail";
+import CreateInvoice from "./pages/CreateInvoice";
+import InvoiceDetail from "./pages/InvoiceDetail";
+import Invoices from "./pages/Invoices";
 import NotFound from "./pages/NotFound";
 import RequireAuth from "./components/auth/RequireAuth";
 
@@ -48,6 +51,21 @@ const App = () => (
             <Route path="/job-cards/:id" element={
               <RequireAuth>
                 <JobDetail />
+              </RequireAuth>
+            } />
+            <Route path="/invoices" element={
+              <RequireAuth>
+                <Invoices />
+              </RequireAuth>
+            } />
+            <Route path="/invoices/new/:jobId" element={
+              <RequireAuth>
+                <CreateInvoice />
+              </RequireAuth>
+            } />
+            <Route path="/invoices/:invoiceId" element={
+              <RequireAuth>
+                <InvoiceDetail />
               </RequireAuth>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
