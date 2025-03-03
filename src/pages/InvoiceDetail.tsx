@@ -12,7 +12,6 @@ import { useInvoiceDetails } from "@/hooks/use-invoice-details";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-// Helper function for currency formatting
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-ZA", {
     style: 'currency',
@@ -20,7 +19,6 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-// Helper function to get status color
 const getStatusColor = (status: string) => {
   switch (status) {
     case "Draft":
@@ -42,7 +40,7 @@ const InvoiceDetail = () => {
   const { invoice, loading, getInvoice, updateInvoice } = useInvoiceDetails();
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const [isPrintReady, setIsPrintReady] = useState(false);
-  const invoiceRef = useRef<HTMLDivElement>(null);
+  const printableInvoiceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (invoiceId) {
@@ -51,10 +49,16 @@ const InvoiceDetail = () => {
   }, [invoiceId]);
 
   const handlePrintOrPDF = useReactToPrint({
+    content: () => printableInvoiceRef.current,
     documentTitle: `Invoice_${invoice?.invoice_number || "unknown"}`,
     onAfterPrint: () => {
       setIsPrintReady(false);
+      toast.success("Invoice printed/saved successfully");
     },
+    onPrintError: (error) => {
+      console.error("Print error:", error);
+      toast.error("Failed to print invoice");
+    }
   });
 
   const handleStatusChange = async (status: "Draft" | "Sent" | "Paid" | "Overdue") => {
@@ -73,9 +77,7 @@ const InvoiceDetail = () => {
     setIsPrintDialogOpen(false);
     setIsPrintReady(true);
     setTimeout(() => {
-      if (invoiceRef.current) {
-        handlePrintOrPDF();
-      }
+      handlePrintOrPDF();
     }, 200);
   };
 
@@ -117,8 +119,8 @@ const InvoiceDetail = () => {
               </tr>
             </thead>
             <tbody>
-              {invoice?.line_items.map((item) => (
-                <tr key={item.id} className="border-b">
+              {invoice?.line_items.map((item, idx) => (
+                <tr key={idx} className="border-b">
                   <td className="py-2">{item.description}</td>
                   <td className="py-2 text-right">{item.quantity}</td>
                   <td className="py-2 text-right">{formatCurrency(item.unit_price)}</td>
@@ -314,8 +316,8 @@ const InvoiceDetail = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invoice.line_items.map((item) => (
-                      <TableRow key={item.id}>
+                    {invoice.line_items.map((item, idx) => (
+                      <TableRow key={idx}>
                         <TableCell>{item.description}</TableCell>
                         <TableCell className="text-right">{item.quantity}</TableCell>
                         <TableCell className="text-right">{formatCurrency(item.unit_price)}</TableCell>
@@ -382,7 +384,7 @@ const InvoiceDetail = () => {
         </DialogContent>
       </Dialog>
 
-      <div ref={invoiceRef} className={isPrintReady ? "print-content" : "hidden print-content"}>
+      <div ref={printableInvoiceRef} className={isPrintReady ? "print-content" : "hidden print-content"}>
         {isPrintReady && <PrintableInvoice />}
       </div>
     </div>

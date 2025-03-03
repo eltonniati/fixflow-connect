@@ -38,7 +38,6 @@ import { useCompanies } from "@/hooks/use-companies";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Job, Company, InvoiceLineItem, InvoiceTax } from "@/lib/types";
 
-// Helper function for currency formatting
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-ZA", {
     style: "currency",
@@ -58,7 +57,6 @@ const InvoiceForm = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // New line item form state
   const [newItemDescription, setNewItemDescription] = useState("");
   const [newItemQuantity, setNewItemQuantity] = useState(1);
   const [newItemUnitPrice, setNewItemUnitPrice] = useState(0);
@@ -80,12 +78,10 @@ const InvoiceForm = () => {
       
       setJob(jobData);
       
-      // Find company
       if (companies.length > 0) {
         setCompany(companies[0]);
       }
       
-      // Create invoice from job
       const invoiceData = await createInvoiceFromJob(jobData);
       if (!invoiceData) {
         toast.error("Failed to create invoice");
@@ -105,7 +101,6 @@ const InvoiceForm = () => {
     
     addLineItem(newItemDescription, newItemQuantity, newItemUnitPrice);
     
-    // Clear form
     setNewItemDescription("");
     setNewItemQuantity(1);
     setNewItemUnitPrice(0);
@@ -144,10 +139,16 @@ const InvoiceForm = () => {
   };
   
   const handlePrintInvoice = useReactToPrint({
+    content: () => invoiceRef.current,
     documentTitle: `Invoice_${invoice?.invoice_number || "draft"}`,
     onAfterPrint: () => {
       setIsPrintReady(false);
+      toast.success("Invoice printed/saved successfully");
     },
+    onPrintError: (error) => {
+      console.error("Print error:", error);
+      toast.error("Failed to print invoice");
+    }
   });
   
   const handlePrint = () => {
@@ -188,7 +189,6 @@ const InvoiceForm = () => {
       
       <div className="grid gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          {/* Invoice Details */}
           <Card>
             <CardHeader>
               <CardTitle>Invoice Details</CardTitle>
@@ -256,7 +256,6 @@ const InvoiceForm = () => {
             </CardContent>
           </Card>
           
-          {/* Line Items */}
           <Card>
             <CardHeader>
               <CardTitle>Line Items</CardTitle>
@@ -316,7 +315,6 @@ const InvoiceForm = () => {
                     </TableRow>
                   ))}
                   
-                  {/* Add new item row */}
                   <TableRow>
                     <TableCell>
                       <Input
@@ -380,7 +378,6 @@ const InvoiceForm = () => {
             </CardFooter>
           </Card>
           
-          {/* Additional Notes */}
           <Card>
             <CardHeader>
               <CardTitle>Additional Information</CardTitle>
@@ -408,7 +405,6 @@ const InvoiceForm = () => {
           </Card>
         </div>
         
-        {/* Action Sidebar */}
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Actions</CardTitle>
@@ -454,7 +450,6 @@ const InvoiceForm = () => {
         </Card>
       </div>
       
-      {/* Print Dialog */}
       <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -473,8 +468,10 @@ const InvoiceForm = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Hidden printable invoice */}
-      <div ref={invoiceRef} className={isPrintReady ? "print-content" : "hidden print-content"}>
+      <div 
+        ref={invoiceRef} 
+        className={isPrintReady ? "print-content" : "hidden print-content"}
+      >
         {isPrintReady && (
           <div className="p-6 max-w-4xl mx-auto bg-white">
             <div className="border-2 border-gray-200 p-6">
