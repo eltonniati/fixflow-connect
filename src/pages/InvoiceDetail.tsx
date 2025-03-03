@@ -49,8 +49,15 @@ const InvoiceDetail = () => {
   }, [invoiceId]);
 
   const handlePrintOrPDF = useReactToPrint({
-    content: () => printableInvoiceRef.current,
     documentTitle: `Invoice_${invoice?.invoice_number || "unknown"}`,
+    onBeforeGetContent: () => {
+      setIsPrintReady(true);
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          resolve();
+        }, 200);
+      });
+    },
     onAfterPrint: () => {
       setIsPrintReady(false);
       toast.success("Invoice printed/saved successfully");
@@ -58,7 +65,10 @@ const InvoiceDetail = () => {
     onPrintError: (error) => {
       console.error("Print error:", error);
       toast.error("Failed to print invoice");
-    }
+      setIsPrintReady(false);
+    },
+    removeAfterPrint: true,
+    contentRef: printableInvoiceRef
   });
 
   const handleStatusChange = async (status: "Draft" | "Sent" | "Paid" | "Overdue") => {
@@ -75,10 +85,11 @@ const InvoiceDetail = () => {
 
   const handlePrint = () => {
     setIsPrintDialogOpen(false);
-    setIsPrintReady(true);
-    setTimeout(() => {
+    if (printableInvoiceRef.current) {
       handlePrintOrPDF();
-    }, 200);
+    } else {
+      toast.error("Print content not ready");
+    }
   };
 
   const PrintableInvoice = () => (
