@@ -34,8 +34,10 @@ export function useInvoiceUpdater() {
         };
       }
 
+      // Prepare the data for Supabase
       const invoiceData = prepareInvoiceForDatabase(updatedInvoice);
 
+      // Update the database record
       const { error } = await supabase
         .from("invoices")
         .update(invoiceData)

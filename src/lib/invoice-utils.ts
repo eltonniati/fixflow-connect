@@ -75,24 +75,28 @@ export const createTaxItem = (name: string, rate: number, subtotal: number): Inv
 
 /**
  * Prepares invoice data for Supabase insert/update
+ * Converts complex objects to JSON strings for Supabase
  */
 export const prepareInvoiceForDatabase = (invoice: Partial<Invoice>) => {
+  // Create a safe copy of the invoice data as JSON
+  const invoiceData = {
+    status: invoice.status,
+    issue_date: invoice.issue_date,
+    due_date: invoice.due_date,
+    line_items: invoice.line_items,
+    taxes: invoice.taxes,
+    subtotal: invoice.subtotal,
+    tax_total: invoice.tax_total,
+    notes: invoice.notes,
+    terms: invoice.terms
+  };
+
   return {
     job_id: invoice.job_id,
     bill_description: invoice.bill_description,
     bill_amount: invoice.bill_amount || invoice.subtotal,
     total: invoice.total,
     invoice_number: invoice.invoice_number,
-    invoice_data: {
-      status: invoice.status,
-      issue_date: invoice.issue_date,
-      due_date: invoice.due_date,
-      line_items: invoice.line_items,
-      taxes: invoice.taxes,
-      subtotal: invoice.subtotal,
-      tax_total: invoice.tax_total,
-      notes: invoice.notes,
-      terms: invoice.terms
-    }
+    invoice_data: invoiceData
   };
 };

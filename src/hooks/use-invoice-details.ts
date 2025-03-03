@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Invoice, Job } from "@/lib/types";
+import { Invoice, Job, InvoiceLineItem, InvoiceTax } from "@/lib/types";
 import { useInvoiceCreator } from "./invoice/use-invoice-creator";
 import { useInvoiceFetcher } from "./invoice/use-invoice-fetcher";
 import { useInvoiceUpdater } from "./invoice/use-invoice-updater";
