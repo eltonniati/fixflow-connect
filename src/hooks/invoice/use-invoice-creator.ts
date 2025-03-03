@@ -60,7 +60,7 @@ export function useInvoiceCreator() {
         invoice_number: `INV-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`
       };
 
-      // Convert the entire data object to a format Supabase can safely store
+      // Insert into database with properly prepared data
       const { data, error } = await supabase
         .from("invoices")
         .insert(invoiceData)

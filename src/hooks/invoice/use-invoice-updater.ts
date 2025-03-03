@@ -34,7 +34,7 @@ export function useInvoiceUpdater() {
         };
       }
 
-      // Prepare the data for Supabase
+      // Prepare the data for Supabase with JSON formatting
       const invoiceData = prepareInvoiceForDatabase(updatedInvoice);
 
       // Update the database record

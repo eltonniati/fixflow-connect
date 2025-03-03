@@ -1,6 +1,7 @@
 
 import { Invoice, InvoiceLineItem, InvoiceTax } from "@/lib/types";
 import { v4 as uuidv4 } from "uuid";
+import { Json } from "@/integrations/supabase/types";
 
 /**
  * Maps a database invoice record to the frontend Invoice model
@@ -75,20 +76,21 @@ export const createTaxItem = (name: string, rate: number, subtotal: number): Inv
 
 /**
  * Prepares invoice data for Supabase insert/update
- * Converts complex objects to JSON strings for Supabase
+ * Converts complex objects to JSON compatible format for Supabase
  */
 export const prepareInvoiceForDatabase = (invoice: Partial<Invoice>) => {
-  // Create a safe copy of the invoice data as JSON
+  // First, create a properly structured JSON object
+  // that conforms to the Json type from Supabase
   const invoiceData = {
     status: invoice.status,
     issue_date: invoice.issue_date,
     due_date: invoice.due_date,
-    line_items: invoice.line_items,
-    taxes: invoice.taxes,
+    line_items: invoice.line_items ? JSON.parse(JSON.stringify(invoice.line_items)) : [],
+    taxes: invoice.taxes ? JSON.parse(JSON.stringify(invoice.taxes)) : [],
     subtotal: invoice.subtotal,
     tax_total: invoice.tax_total,
-    notes: invoice.notes,
-    terms: invoice.terms
+    notes: invoice.notes || "",
+    terms: invoice.terms || ""
   };
 
   return {
@@ -97,6 +99,6 @@ export const prepareInvoiceForDatabase = (invoice: Partial<Invoice>) => {
     bill_amount: invoice.bill_amount || invoice.subtotal,
     total: invoice.total,
     invoice_number: invoice.invoice_number,
-    invoice_data: invoiceData
+    invoice_data: invoiceData as Json
   };
 };
