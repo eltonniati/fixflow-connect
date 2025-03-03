@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
@@ -140,7 +141,8 @@ const InvoiceForm = () => {
   
   const handlePrintInvoice = useReactToPrint({
     documentTitle: `Invoice_${invoice?.invoice_number || "draft"}`,
-    onBeforeGetContent: () => {
+    // Replace onBeforeGetContent with setup function
+    onBeforePrint: () => {
       setIsPrintReady(true);
       return new Promise<void>((resolve) => {
         setTimeout(() => {

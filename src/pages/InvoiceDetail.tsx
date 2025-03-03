@@ -28,7 +28,7 @@ const InvoiceDetail = () => {
 
   const handlePrintOrPDF = useReactToPrint({
     documentTitle: `Invoice_${invoice?.invoice_number || "unknown"}`,
-    content: () => printableInvoiceRef.current,
+    contentRef: printableInvoiceRef,
     onAfterPrint: () => {
       setIsPrintReady(false);
       toast.success("Invoice printed/saved successfully");
