@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
@@ -141,7 +140,6 @@ const InvoiceForm = () => {
   
   const handlePrintInvoice = useReactToPrint({
     documentTitle: `Invoice_${invoice?.invoice_number || "draft"}`,
-    // Replace onBeforeGetContent with setup function
     onBeforePrint: () => {
       setIsPrintReady(true);
       return new Promise<void>((resolve) => {
@@ -159,7 +157,6 @@ const InvoiceForm = () => {
       toast.error("Failed to print invoice");
       setIsPrintReady(false);
     },
-    removeAfterPrint: true,
     contentRef: invoiceRef
   });
   
