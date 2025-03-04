@@ -28,9 +28,11 @@ const mapDatabaseJobToJob = (dbJob: any): Job => ({
   price: dbJob.handling_fees
 });
 
-// Job number generation
+// Job number generation with correct parameter name
 const getNextJobNumber = async (userId: string): Promise<string> => {
-  const { data, error } = await supabase.rpc('increment_job_number', { user_id: userId });
+  const { data, error } = await supabase.rpc('increment_job_number', { 
+    p_user_id: userId  // Corrected parameter name
+  });
   if (error || !data) throw error || new Error("Failed to generate job number");
   return `JC-${data.toString().padStart(4, '0')}`;
 };
@@ -68,7 +70,7 @@ export function useJobs() {
       const { data, error } = await supabase
         .from("jobs")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("jobs.user_id", user.id)  // Explicit table reference
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -185,7 +187,7 @@ export function useJobs() {
         .from("jobs")
         .update(dbJobData)
         .eq("id", id)
-        .eq("user_id", user.id)
+        .eq("jobs.user_id", user.id)  // Explicit table reference
         .select()
         .single();
 
@@ -214,7 +216,7 @@ export function useJobs() {
         .from("jobs")
         .delete()
         .eq("id", id)
-        .eq("user_id", user.id);
+        .eq("jobs.user_id", user.id);  // Explicit table reference
 
       if (error) throw error;
 
@@ -240,7 +242,7 @@ export function useJobs() {
         .from("jobs")
         .select("*")
         .eq("id", id)
-        .eq("user_id", user.id)
+        .eq("jobs.user_id", user.id)  // Explicit table reference
         .single();
 
       if (error) throw error;
