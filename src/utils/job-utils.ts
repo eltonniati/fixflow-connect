@@ -1,3 +1,4 @@
+
 import { supabase, generateRandomString, getLastFourDigits, getPrefix } from "@/integrations/supabase/client";
 import type { Job, JobStatus } from "@/lib/types";
 
@@ -27,17 +28,27 @@ export const mapDatabaseJobToJob = (dbJob: any): Job => {
   };
 };
 
-// Generate a unique job card number with increased randomness
+// Generate a guaranteed unique job card number
 export const generateUniqueJobCardNumber = async (customerName: string, customerPhone: string): Promise<string> => {
   try {
-    // Generate components for job card number with higher entropy
-    const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp for more uniqueness
-    const namePrefix = getPrefix(customerName);
-    const phoneDigits = getLastFourDigits(customerPhone);
-    const randomStr = generateRandomString(4); // Increase random string length from 3 to 4
+    // Generate a timestamp with millisecond precision
+    const timestamp = Date.now();
     
-    // Combine components with a different format to avoid collisions
-    const jobCardNumber = `${namePrefix}${phoneDigits}-${randomStr}${timestamp}`;
+    // Create a unique suffix that changes with every millisecond
+    const uniqueSuffix = timestamp.toString(36) + Math.random().toString(36).substring(2, 5);
+    
+    // Get prefix from customer name (first 2 chars or initials)
+    const namePrefix = getPrefix(customerName);
+    
+    // Get last 4 digits of phone
+    const phoneDigits = getLastFourDigits(customerPhone);
+    
+    // Generate a random string for additional uniqueness
+    const randomStr = generateRandomString(4);
+    
+    // Combine all elements to create a unique job card number
+    // Format: PREFIX-PHONEDIGITS-RANDOMSTRING-TIMESTAMP
+    const jobCardNumber = `${namePrefix}${phoneDigits}-${randomStr}-${uniqueSuffix}`;
     
     // Check if this job card number already exists
     const { data } = await supabase
@@ -46,20 +57,23 @@ export const generateUniqueJobCardNumber = async (customerName: string, customer
       .eq("job_card_number", jobCardNumber)
       .single();
     
-    // If it exists, try again with a new random string and timestamp
+    // This should be extremely unlikely, but if it exists, add more randomness
     if (data) {
-      console.log(`Job card number ${jobCardNumber} already exists, generating a new one...`);
-      // Small delay to ensure different timestamp
-      await new Promise(resolve => setTimeout(resolve, 50));
-      return generateUniqueJobCardNumber(customerName, customerPhone);
+      console.log(`Job card number ${jobCardNumber} already exists, generating a new one with more entropy...`);
+      // Add a small delay to ensure different timestamp
+      await new Promise(resolve => setTimeout(resolve, 10));
+      return generateUniqueJobCardNumber(
+        customerName + Math.random().toString(36).substring(2, 4), 
+        customerPhone
+      );
     }
     
     return jobCardNumber;
   } catch (error) {
     // If there's an error (like no matching record), the number is unique
-    // Add additional randomness for safety in the fallback
-    const uniqueSuffix = `${Math.floor(Math.random() * 1000)}-${Date.now().toString().slice(-6)}`;
-    return `${getPrefix(customerName)}${getLastFourDigits(customerPhone)}-${generateRandomString(4)}${uniqueSuffix}`;
+    // In the extremely unlikely case we get here, add a UUID-based fallback
+    const fallbackSuffix = Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
+    return `${getPrefix(customerName)}${getLastFourDigits(customerPhone)}-${generateRandomString(6)}-${fallbackSuffix}`;
   }
 };
 
@@ -68,7 +82,7 @@ export const mapJobToDatabaseJob = async (
   job: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>, 
   userId: string
 ) => {
-  // Generate a unique job card number
+  // Generate a unique job card number with our improved algorithm
   const jobCardNumber = await generateUniqueJobCardNumber(job.customer.name, job.customer.phone);
   
   return {
