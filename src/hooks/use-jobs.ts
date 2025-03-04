@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { supabase, generateRandomString, getLastFourDigits, getPrefix } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,42 +26,24 @@ const mapDatabaseJobToJob = (dbJob: any): Job => {
     },
     created_at: dbJob.created_at,
     updated_at: dbJob.updated_at,
-    price: dbJob.handling_fees // Map handling_fees to price for backward compatibility
+    price: dbJob.handling_fees
   };
 };
 
-// Generate a unique job card number
-const generateUniqueJobCardNumber = async (customerName: string, customerPhone: string): Promise<string> => {
-  // Generate components for job card number
-  const timestamp = Date.now().toString().slice(-5); // Last 5 digits of timestamp
+// Generate job card number with increased uniqueness
+const generateJobCardNumber = (customerName: string, customerPhone: string): string => {
+  const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp
   const namePrefix = getPrefix(customerName);
   const phoneDigits = getLastFourDigits(customerPhone);
-  const randomStr = generateRandomString(3); // Random 3 character string
-  
-  // Combine components
-  const jobCardNumber = `${namePrefix}${phoneDigits}-${randomStr}${timestamp}`;
-  
-  // Check if this job card number already exists
-  const { data } = await supabase
-    .from("jobs")
-    .select("job_card_number")
-    .eq("job_card_number", jobCardNumber)
-    .single();
-  
-  // If it exists (very unlikely but possible), try again with a new random string
-  if (data) {
-    return generateUniqueJobCardNumber(customerName, customerPhone);
-  }
-  
-  return jobCardNumber;
+  const randomStr = generateRandomString(4); // 4 random characters
+  return `${namePrefix}${phoneDigits}-${randomStr}${timestamp}`;
 };
 
-const mapJobToDatabaseJob = async (
+const mapJobToDatabaseJob = (
   job: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>, 
   userId: string
 ) => {
-  // Generate a unique job card number
-  const jobCardNumber = await generateUniqueJobCardNumber(job.customer.name, job.customer.phone);
+  const jobCardNumber = generateJobCardNumber(job.customer.name, job.customer.phone);
   
   return {
     customer_name: job.customer.name,
@@ -74,7 +55,7 @@ const mapJobToDatabaseJob = async (
     problem: job.details.problem,
     status: job.details.status,
     handling_fees: job.details.handling_fees,
-    job_card_number: jobCardNumber, // Set the generated job card number
+    job_card_number: jobCardNumber,
     user_id: userId
   };
 };
@@ -113,7 +94,6 @@ export function useJobs() {
   useEffect(() => {
     fetchJobs();
 
-    // Subscribe to changes in the jobs table
     const setupSubscription = () => {
       if (!user) return null;
 
@@ -126,9 +106,7 @@ export function useJobs() {
             table: 'jobs',
             filter: `user_id=eq.${user.id}`
           }, 
-          () => {
-            fetchJobs();
-          }
+          () => fetchJobs()
         )
         .subscribe();
     };
@@ -143,30 +121,48 @@ export function useJobs() {
   const createJob = async (jobData: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>) => {
     if (!user) return null;
 
-    try {
-      setLoading(true);
+    let retries = 0;
+    const maxRetries = 5;
 
-      const dbJobData = await mapJobToDatabaseJob(jobData, user.id);
+    while (retries < maxRetries) {
+      try {
+        setLoading(true);
+        const dbJobData = mapJobToDatabaseJob(jobData, user.id);
 
-      const { data, error } = await supabase
-        .from("jobs")
-        .insert(dbJobData)
-        .select()
-        .single();
+        const { data, error } = await supabase
+          .from("jobs")
+          .insert(dbJobData)
+          .select()
+          .single();
 
-      if (error) throw error;
-      
-      const formattedJob = mapDatabaseJobToJob(data);
-      setJobs(prevJobs => [formattedJob, ...prevJobs]);
-      toast.success("Job created successfully");
-      return formattedJob;
-    } catch (error: any) {
-      console.error("Error creating job:", error);
-      toast.error(error.message || "Failed to create job");
-      return null;
-    } finally {
-      setLoading(false);
+        if (error) {
+          if (error.code === '23505') { // Unique constraint violation
+            retries++;
+            continue;
+          }
+          throw error;
+        }
+
+        const formattedJob = mapDatabaseJobToJob(data);
+        setJobs(prevJobs => [formattedJob, ...prevJobs]);
+        toast.success("Job created successfully");
+        return formattedJob;
+      } catch (error: any) {
+        if (error.code === '23505' && retries < maxRetries) {
+          retries++;
+          continue;
+        }
+        
+        console.error("Error creating job:", error);
+        toast.error(error.message || "Failed to create job");
+        return null;
+      } finally {
+        setLoading(false);
+      }
     }
+
+    toast.error("Failed to create job after multiple attempts");
+    return null;
   };
 
   const updateJob = async (id: string, jobData: Partial<Job>) => {
@@ -175,7 +171,6 @@ export function useJobs() {
     try {
       setLoading(true);
 
-      // Extract database-compatible values
       const dbJobData: Record<string, any> = {};
       
       if (jobData.customer) {
@@ -225,7 +220,7 @@ export function useJobs() {
     return updateJob(id, { 
       details: { 
         status,
-        problem: '', // These empty values won't be used in the actual update
+        problem: '',
         handling_fees: 0
       } 
     });
