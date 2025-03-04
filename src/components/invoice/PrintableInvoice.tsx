@@ -112,13 +112,15 @@ export const PrintableInvoice = ({ invoice }: PrintableInvoiceProps) => {
         </div>
       </div>
       
-      <style jsx>{`
-        @media print {
-          .page-break-avoid {
-            page-break-inside: avoid;
+      <style>
+        {`
+          @media print {
+            .page-break-avoid {
+              page-break-inside: avoid;
+            }
           }
-        }
-      `}</style>
+        `}
+      </style>
     </div>
   );
 };
