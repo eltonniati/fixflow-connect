@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import type { Job, JobStatus } from "@/lib/types";
-import { mapJobToDatabaseJob, mapDatabaseJobToJob } from "@/utils/job-utils";
+import { mapJobToDatabaseJob, mapDatabaseJobToJob, generateUniqueJobCardNumber } from "@/utils/job-utils";
 
 export function useJobMutation() {
   const { user } = useAuth();
@@ -16,15 +16,41 @@ export function useJobMutation() {
     try {
       setLoading(true);
 
+      // Map job data to database format with a unique job card number
       const dbJobData = await mapJobToDatabaseJob(jobData, user.id);
 
-      const { data, error } = await supabase
+      // Attempt to insert the job
+      let { data, error } = await supabase
         .from("jobs")
         .insert(dbJobData)
         .select()
         .single();
 
-      if (error) throw error;
+      // If there's a duplicate key error, retry with a new job card number
+      if (error && error.message.includes('duplicate key value violates unique constraint "jobs_job_card_number_key"')) {
+        console.log("Duplicate job card number detected, generating a new one...");
+        
+        // Generate a new job card number with additional randomness
+        const newJobCardNumber = await generateUniqueJobCardNumber(
+          jobData.customer.name, 
+          jobData.customer.phone
+        );
+        
+        // Retry with the new job card number
+        const result = await supabase
+          .from("jobs")
+          .insert({
+            ...dbJobData,
+            job_card_number: newJobCardNumber
+          })
+          .select()
+          .single();
+        
+        if (result.error) throw result.error;
+        data = result.data;
+      } else if (error) {
+        throw error;
+      }
       
       const formattedJob = mapDatabaseJobToJob(data);
       toast.success("Job created successfully");

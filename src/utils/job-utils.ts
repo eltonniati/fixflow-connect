@@ -30,28 +30,33 @@ export const mapDatabaseJobToJob = (dbJob: any): Job => {
 
 // Generate a unique job card number
 export const generateUniqueJobCardNumber = async (customerName: string, customerPhone: string): Promise<string> => {
-  // Generate components for job card number
-  const timestamp = Date.now().toString().slice(-5); // Last 5 digits of timestamp
-  const namePrefix = getPrefix(customerName);
-  const phoneDigits = getLastFourDigits(customerPhone);
-  const randomStr = generateRandomString(3); // Random 3 character string
-  
-  // Combine components
-  const jobCardNumber = `${namePrefix}${phoneDigits}-${randomStr}${timestamp}`;
-  
-  // Check if this job card number already exists
-  const { data } = await supabase
-    .from("jobs")
-    .select("job_card_number")
-    .eq("job_card_number", jobCardNumber)
-    .single();
-  
-  // If it exists (very unlikely but possible), try again with a new random string
-  if (data) {
-    return generateUniqueJobCardNumber(customerName, customerPhone);
+  try {
+    // Generate components for job card number
+    const timestamp = Date.now().toString().slice(-5); // Last 5 digits of timestamp
+    const namePrefix = getPrefix(customerName);
+    const phoneDigits = getLastFourDigits(customerPhone);
+    const randomStr = generateRandomString(3); // Random 3 character string
+    
+    // Combine components
+    const jobCardNumber = `${namePrefix}${phoneDigits}-${randomStr}${timestamp}`;
+    
+    // Check if this job card number already exists
+    const { data } = await supabase
+      .from("jobs")
+      .select("job_card_number")
+      .eq("job_card_number", jobCardNumber)
+      .single();
+    
+    // If it exists (very unlikely but possible), try again with a new random string
+    if (data) {
+      return generateUniqueJobCardNumber(customerName, customerPhone);
+    }
+    
+    return jobCardNumber;
+  } catch (error) {
+    // If there's an error (like no matching record), the number is unique
+    return `${getPrefix(customerName)}${getLastFourDigits(customerPhone)}-${generateRandomString(3)}${Date.now().toString().slice(-5)}`;
   }
-  
-  return jobCardNumber;
 };
 
 // Map frontend job to database job format
