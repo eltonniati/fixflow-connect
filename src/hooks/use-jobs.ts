@@ -28,15 +28,15 @@ const mapDatabaseJobToJob = (dbJob: any): Job => ({
   price: dbJob.handling_fees
 });
 
-// Job Number Generator
-const getNextJobNumber = async (userId: string): Promise<string> => {
+// Atomic Job Number Generator
+const generateJobNumber = async (userId: string): Promise<string> => {
   try {
-    const { data, error } = await supabase.rpc('increment_job_number', { 
-      p_user_id: userId 
+    const { data, error } = await supabase.rpc('increment_job_number', {
+      p_user_id: userId
     });
 
     if (error) {
-      console.error("RPC Error:", {
+      console.error("Sequence Error:", {
         code: error.code,
         message: error.message,
         details: error.details
@@ -44,7 +44,7 @@ const getNextJobNumber = async (userId: string): Promise<string> => {
       throw new Error("Failed to generate sequence number");
     }
 
-    if (typeof data !== "number") {
+    if (typeof data !== "number" || data < 0) {
       throw new Error("Invalid sequence number received");
     }
 
@@ -55,23 +55,30 @@ const getNextJobNumber = async (userId: string): Promise<string> => {
   }
 };
 
-// Frontend to Database Model Mapper
+// Frontend to Database Model Converter
 const mapJobToDatabaseJob = async (
-  job: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>, 
+  job: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>,
   userId: string
-) => ({
-  customer_name: job.customer.name,
-  customer_phone: job.customer.phone,
-  customer_email: job.customer.email || null,
-  device_name: job.device.name,
-  device_model: job.device.model,
-  device_condition: job.device.condition,
-  problem: job.details.problem,
-  status: job.details.status,
-  handling_fees: job.details.handling_fees,
-  job_card_number: await getNextJobNumber(userId),
-  user_id: userId
-});
+) => {
+  // Validate required fields
+  if (!job.customer.phone.match(/^\d{10,}$/)) {
+    throw new Error("Invalid phone number format");
+  }
+
+  return {
+    customer_name: job.customer.name.substring(0, 50),
+    customer_phone: job.customer.phone,
+    customer_email: job.customer.email?.substring(0, 100) || null,
+    device_name: job.device.name.substring(0, 50),
+    device_model: job.device.model.substring(0, 50),
+    device_condition: job.device.condition,
+    problem: job.details.problem.substring(0, 500),
+    status: job.details.status,
+    handling_fees: job.details.handling_fees,
+    job_card_number: await generateJobNumber(userId),
+    user_id: userId
+  };
+};
 
 export function useJobs() {
   const { user } = useAuth();
@@ -79,7 +86,7 @@ export function useJobs() {
   const [loading, setLoading] = useState(true);
   const [job, setJob] = useState<Job | null>(null);
 
-  // Fetch jobs with explicit table references
+  // Fetch jobs with error boundaries
   const fetchJobs = async () => {
     if (!user) {
       setLoading(false);
@@ -90,14 +97,14 @@ export function useJobs() {
       const { data, error } = await supabase
         .from("jobs")
         .select("*")
-        .eq("jobs.user_id", user.id)
-        .order("jobs.created_at", { ascending: false });
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setJobs((data || []).map(mapDatabaseJobToJob));
+      setJobs(data?.map(mapDatabaseJobToJob) || []);
     } catch (error: any) {
       console.error("Fetch Error:", error);
-      toast.error(error.message || "Failed to load jobs");
+      toast.error("Failed to load jobs. Please refresh the page.");
     } finally {
       setLoading(false);
     }
@@ -109,7 +116,7 @@ export function useJobs() {
 
     fetchJobs();
     
-    const channel = supabase
+    const subscription = supabase
       .channel('jobs-realtime')
       .on('postgres_changes', {
         event: '*',
@@ -119,24 +126,26 @@ export function useJobs() {
       }, fetchJobs)
       .subscribe();
 
-    return () => {
-      channel.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, [user]);
 
-  // Create job with enhanced retry logic
+  // Robust Job Creation
   const createJob = async (jobData: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>) => {
     if (!user) return null;
 
     let retries = 0;
     const maxRetries = 3;
-    const errors: Array<{ attempt: number; error: any }> = [];
+    let lastGeneratedNumber: string | null = null;
 
-    while (retries <= maxRetries) {
+    while (retries < maxRetries) {
       try {
         setLoading(true);
+        
+        // Generate database payload
         const dbJobData = await mapJobToDatabaseJob(jobData, user.id);
+        lastGeneratedNumber = dbJobData.job_card_number;
 
+        // Insert job
         const { data, error } = await supabase
           .from("jobs")
           .insert(dbJobData)
@@ -144,38 +153,42 @@ export function useJobs() {
           .single();
 
         if (error) {
-          errors.push({ attempt: retries, error });
-          if (error.code === '23505') { // Unique violation
+          // Handle unique constraint violation
+          if (error.code === '23505') {
+            console.warn(`Duplicate detected: ${lastGeneratedNumber}`);
             retries++;
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 50));
             continue;
           }
           throw error;
         }
 
+        // Update state
         const newJob = mapDatabaseJobToJob(data);
         setJobs(prev => [newJob, ...prev]);
         toast.success("Job created successfully");
         return newJob;
+
       } catch (error: any) {
-        errors.push({ attempt: retries, error });
-        if (retries < maxRetries) {
+        console.error(`Create Job Attempt ${retries + 1} Failed:`, {
+          error,
+          lastGeneratedNumber,
+          user: user.id,
+          jobData
+        });
+
+        if (retries < maxRetries - 1) {
           retries++;
           await new Promise(resolve => setTimeout(resolve, 100));
           continue;
         }
 
-        console.error("Create Job Failed:", {
-          attempts: retries,
-          userId: user.id,
-          errors: errors.map(e => ({
-            code: e.error.code,
-            message: e.error.message
-          })),
-          jobData
-        });
+        // Final error handling
+        const errorMessage = error.message.includes("phone number") 
+          ? "Invalid phone number format"
+          : "Failed to create job after multiple attempts";
 
-        toast.error("Failed to create job after multiple attempts. Please try again.");
+        toast.error(errorMessage);
         return null;
       } finally {
         setLoading(false);
@@ -184,62 +197,71 @@ export function useJobs() {
     return null;
   };
 
-  // Update job with explicit table references
-  const updateJob = async (id: string, jobData: Partial<Job>) => {
+  // Update Job with validation
+  const updateJob = async (id: string, updates: Partial<Job>) => {
     if (!user) return null;
 
     try {
       setLoading(true);
-      const updatePayload: Record<string, any> = {};
+      const updateData: Record<string, any> = {};
 
-      // Customer updates
-      if (jobData.customer) {
-        updatePayload.customer_name = jobData.customer.name || undefined;
-        updatePayload.customer_phone = jobData.customer.phone || undefined;
-        updatePayload.customer_email = jobData.customer.email ?? null;
+      // Validate and prepare update data
+      if (updates.customer) {
+        if (updates.customer.name) updateData.customer_name = updates.customer.name.substring(0, 50);
+        if (updates.customer.phone) {
+          if (!updates.customer.phone.match(/^\d{10,}$/)) {
+            throw new Error("Invalid phone number format");
+          }
+          updateData.customer_phone = updates.customer.phone;
+        }
+        updateData.customer_email = updates.customer.email?.substring(0, 100) || null;
       }
 
-      // Device updates
-      if (jobData.device) {
-        updatePayload.device_name = jobData.device.name || undefined;
-        updatePayload.device_model = jobData.device.model || undefined;
-        updatePayload.device_condition = jobData.device.condition || undefined;
+      if (updates.device) {
+        if (updates.device.name) updateData.device_name = updates.device.name.substring(0, 50);
+        if (updates.device.model) updateData.device_model = updates.device.model.substring(0, 50);
+        if (updates.device.condition) updateData.device_condition = updates.device.condition;
       }
 
-      // Detail updates
-      if (jobData.details) {
-        updatePayload.problem = jobData.details.problem || undefined;
-        updatePayload.status = jobData.details.status || undefined;
-        if (typeof jobData.details.handling_fees !== 'undefined') {
-          updatePayload.handling_fees = jobData.details.handling_fees;
+      if (updates.details) {
+        if (updates.details.problem) updateData.problem = updates.details.problem.substring(0, 500);
+        if (updates.details.status) updateData.status = updates.details.status;
+        if (typeof updates.details.handling_fees !== 'undefined') {
+          updateData.handling_fees = updates.details.handling_fees;
         }
       }
 
+      // Perform update
       const { data, error } = await supabase
         .from("jobs")
-        .update(updatePayload)
-        .eq("jobs.id", id)
-        .eq("jobs.user_id", user.id)
+        .update(updateData)
+        .eq("id", id)
+        .eq("user_id", user.id)
         .select()
         .single();
 
       if (error) throw error;
 
+      // Update state
       const updatedJob = mapDatabaseJobToJob(data);
       setJobs(prev => prev.map(j => j.id === id ? updatedJob : j));
       setJob(updatedJob);
       toast.success("Job updated successfully");
       return updatedJob;
+
     } catch (error: any) {
       console.error("Update Error:", error);
-      toast.error(error.message || "Failed to update job");
+      toast.error(error.message.includes("phone number") 
+        ? "Invalid phone number format" 
+        : "Failed to update job"
+      );
       return null;
     } finally {
       setLoading(false);
     }
   };
 
-  // Delete job with explicit table references
+  // Delete Job with confirmation
   const deleteJob = async (id: string) => {
     if (!user) return false;
 
@@ -248,8 +270,8 @@ export function useJobs() {
       const { error } = await supabase
         .from("jobs")
         .delete()
-        .eq("jobs.id", id)
-        .eq("jobs.user_id", user.id);
+        .eq("id", id)
+        .eq("user_id", user.id);
 
       if (error) throw error;
 
@@ -257,16 +279,17 @@ export function useJobs() {
       setJob(null);
       toast.success("Job deleted successfully");
       return true;
+
     } catch (error: any) {
       console.error("Delete Error:", error);
-      toast.error(error.message || "Failed to delete job");
+      toast.error("Failed to delete job. Please try again.");
       return false;
     } finally {
       setLoading(false);
     }
   };
 
-  // Get single job with explicit references
+  // Get single job with cache
   const getJob = async (id: string) => {
     if (!user) return null;
 
@@ -275,8 +298,8 @@ export function useJobs() {
       const { data, error } = await supabase
         .from("jobs")
         .select("*")
-        .eq("jobs.id", id)
-        .eq("jobs.user_id", user.id)
+        .eq("id", id)
+        .eq("user_id", user.id)
         .single();
 
       if (error) throw error;
@@ -284,9 +307,10 @@ export function useJobs() {
       const job = mapDatabaseJobToJob(data);
       setJob(job);
       return job;
+
     } catch (error: any) {
       console.error("Fetch Error:", error);
-      toast.error(error.message || "Failed to fetch job");
+      toast.error("Job not found. It may have been deleted.");
       return null;
     } finally {
       setLoading(false);
