@@ -281,3 +281,4 @@ const deleteJob = async (id: string) => {
     setLoading(false);
   }
 };
+} 
