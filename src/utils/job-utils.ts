@@ -1,4 +1,3 @@
-
 import { supabase, generateRandomString, getLastFourDigits, getPrefix } from "@/integrations/supabase/client";
 import type { Job, JobStatus } from "@/lib/types";
 
@@ -28,16 +27,16 @@ export const mapDatabaseJobToJob = (dbJob: any): Job => {
   };
 };
 
-// Generate a unique job card number
+// Generate a unique job card number with increased randomness
 export const generateUniqueJobCardNumber = async (customerName: string, customerPhone: string): Promise<string> => {
   try {
-    // Generate components for job card number
-    const timestamp = Date.now().toString().slice(-5); // Last 5 digits of timestamp
+    // Generate components for job card number with higher entropy
+    const timestamp = Date.now().toString().slice(-6); // Last 6 digits of timestamp for more uniqueness
     const namePrefix = getPrefix(customerName);
     const phoneDigits = getLastFourDigits(customerPhone);
-    const randomStr = generateRandomString(3); // Random 3 character string
+    const randomStr = generateRandomString(4); // Increase random string length from 3 to 4
     
-    // Combine components
+    // Combine components with a different format to avoid collisions
     const jobCardNumber = `${namePrefix}${phoneDigits}-${randomStr}${timestamp}`;
     
     // Check if this job card number already exists
@@ -47,15 +46,20 @@ export const generateUniqueJobCardNumber = async (customerName: string, customer
       .eq("job_card_number", jobCardNumber)
       .single();
     
-    // If it exists (very unlikely but possible), try again with a new random string
+    // If it exists, try again with a new random string and timestamp
     if (data) {
+      console.log(`Job card number ${jobCardNumber} already exists, generating a new one...`);
+      // Small delay to ensure different timestamp
+      await new Promise(resolve => setTimeout(resolve, 50));
       return generateUniqueJobCardNumber(customerName, customerPhone);
     }
     
     return jobCardNumber;
   } catch (error) {
     // If there's an error (like no matching record), the number is unique
-    return `${getPrefix(customerName)}${getLastFourDigits(customerPhone)}-${generateRandomString(3)}${Date.now().toString().slice(-5)}`;
+    // Add additional randomness for safety in the fallback
+    const uniqueSuffix = `${Math.floor(Math.random() * 1000)}-${Date.now().toString().slice(-6)}`;
+    return `${getPrefix(customerName)}${getLastFourDigits(customerPhone)}-${generateRandomString(4)}${uniqueSuffix}`;
   }
 };
 

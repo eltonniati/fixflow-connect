@@ -19,38 +19,59 @@ export function useJobMutation() {
       // Map job data to database format with a unique job card number
       const dbJobData = await mapJobToDatabaseJob(jobData, user.id);
 
-      // Attempt to insert the job
-      let { data, error } = await supabase
-        .from("jobs")
-        .insert(dbJobData)
-        .select()
-        .single();
-
-      // If there's a duplicate key error, retry with a new job card number
-      if (error && error.message.includes('duplicate key value violates unique constraint "jobs_job_card_number_key"')) {
-        console.log("Duplicate job card number detected, generating a new one...");
-        
-        // Generate a new job card number with additional randomness
-        const newJobCardNumber = await generateUniqueJobCardNumber(
-          jobData.customer.name, 
-          jobData.customer.phone
-        );
-        
-        // Retry with the new job card number
-        const result = await supabase
-          .from("jobs")
-          .insert({
-            ...dbJobData,
-            job_card_number: newJobCardNumber
-          })
-          .select()
-          .single();
-        
-        if (result.error) throw result.error;
-        data = result.data;
-      } else if (error) {
-        throw error;
+      // Try to insert with maximum of 3 retries for duplicate key errors
+      let retries = 0;
+      let data = null;
+      let error = null;
+      
+      while (retries < 3) {
+        try {
+          // Attempt to insert the job
+          const result = await supabase
+            .from("jobs")
+            .insert(dbJobData)
+            .select()
+            .single();
+          
+          if (result.error) {
+            if (result.error.message.includes('duplicate key value violates unique constraint "jobs_job_card_number_key"')) {
+              // If duplicate, generate a new job card number with additional random factors
+              console.log(`Retry #${retries + 1}: Duplicate job card number detected, generating a new one...`);
+              
+              // Add a delay before retry to ensure different timestamp
+              await new Promise(resolve => setTimeout(resolve, 100));
+              
+              // Generate a completely new job card number with additional randomness
+              const newJobCardNumber = await generateUniqueJobCardNumber(
+                jobData.customer.name + Math.random().toString(36).substring(2, 5), // Add random suffix to name
+                jobData.customer.phone
+              );
+              
+              // Update job data with new job card number
+              dbJobData.job_card_number = newJobCardNumber;
+              retries++;
+            } else {
+              // If other error, throw it
+              throw result.error;
+            }
+          } else {
+            // Success - break out of retry loop
+            data = result.data;
+            break;
+          }
+        } catch (e: any) {
+          if (!e.message.includes('duplicate key value violates unique constraint "jobs_job_card_number_key"') || retries >= 2) {
+            // If it's not a duplicate key error or we've tried too many times, throw
+            error = e;
+            break;
+          }
+          retries++;
+        }
       }
+      
+      // Check if we have an error or no data after all retries
+      if (error) throw error;
+      if (!data) throw new Error("Failed to create job after multiple attempts");
       
       const formattedJob = mapDatabaseJobToJob(data);
       toast.success("Job created successfully");
