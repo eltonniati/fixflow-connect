@@ -1,283 +1,86 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import type { Job, JobStatus } from "@/lib/types";
-
-// Helper function to map database job to frontend model
-const mapDatabaseJobToJob = (dbJob: any): Job => ({
-  id: dbJob.id,
-  job_card_number: dbJob.job_card_number,
-  customer: {
-    name: dbJob.customer_name,
-    phone: dbJob.customer_phone,
-    email: dbJob.customer_email || undefined
-  },
-  device: {
-    name: dbJob.device_name,
-    model: dbJob.device_model,
-    condition: dbJob.device_condition
-  },
-  details: {
-    problem: dbJob.problem,
-    status: dbJob.status as JobStatus,
-    handling_fees: dbJob.handling_fees
-  },
-  created_at: dbJob.created_at,
-  updated_at: dbJob.updated_at,
-  price: dbJob.handling_fees
-});
-
-// Job number generation with correct parameter name
+// Enhanced getNextJobNumber with better error handling
 const getNextJobNumber = async (userId: string): Promise<string> => {
-  const { data, error } = await supabase.rpc('increment_job_number', { 
-    p_user_id: userId  // Corrected parameter name
-  });
-  if (error || !data) throw error || new Error("Failed to generate job number");
-  return `JC-${data.toString().padStart(4, '0')}`;
+  try {
+    const { data, error } = await supabase.rpc('increment_job_number', { 
+      p_user_id: userId
+    });
+
+    if (error) {
+      console.error("RPC Error Details:", {
+        code: error.code,
+        message: error.message,
+        details: error.details
+      });
+      throw error;
+    }
+
+    if (!data && data !== 0) {
+      throw new Error("No sequence number returned from database");
+    }
+
+    return `JC-${data.toString().padStart(4, '0')}`;
+  } catch (error) {
+    console.error("Job Number Generation Failed:", {
+      userId,
+      error: error instanceof Error ? error : new Error(JSON.stringify(error))
+    });
+    throw new Error("Failed to generate job number. Please try again.");
+  }
 };
 
-const mapJobToDatabaseJob = async (
-  job: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>, 
-  userId: string
-) => ({
-  customer_name: job.customer.name,
-  customer_phone: job.customer.phone,
-  customer_email: job.customer.email || null,
-  device_name: job.device.name,
-  device_model: job.device.model,
-  device_condition: job.device.condition,
-  problem: job.details.problem,
-  status: job.details.status,
-  handling_fees: job.details.handling_fees,
-  job_card_number: await getNextJobNumber(userId),
-  user_id: userId
-});
+// Modified createJob with enhanced error tracking
+const createJob = async (jobData: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>) => {
+  if (!user) return null;
 
-export function useJobs() {
-  const { user } = useAuth();
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [job, setJob] = useState<Job | null>(null);
+  let retries = 0;
+  const maxRetries = 3;
+  const errors: Error[] = [];
 
-  const fetchJobs = async () => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("jobs")
-        .select("*")
-        .eq("jobs.user_id", user.id)  // Explicit table reference
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setJobs((data || []).map(mapDatabaseJobToJob));
-    } catch (error: any) {
-      console.error("Error fetching jobs:", error);
-      toast.error(error.message || "Failed to fetch jobs");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchJobs();
-
-    const subscription = supabase
-      .channel('jobs-channel')
-      .on('postgres_changes', 
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: 'jobs',
-          filter: `user_id=eq.${user?.id}`
-        }, 
-        fetchJobs
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [user]);
-
-  const createJob = async (jobData: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>) => {
-    if (!user) return null;
-
-    let retries = 0;
-    const maxRetries = 3;
-
-    while (retries < maxRetries) {
-      try {
-        setLoading(true);
-        const dbJobData = await mapJobToDatabaseJob(jobData, user.id);
-
-        const { data, error } = await supabase
-          .from("jobs")
-          .insert(dbJobData)
-          .select()
-          .single();
-
-        if (error) {
-          if (error.code === '23505') {
-            retries++;
-            continue;
-          }
-          throw error;
-        }
-
-        const newJob = mapDatabaseJobToJob(data);
-        setJobs(prev => [newJob, ...prev]);
-        toast.success("Job created successfully");
-        return newJob;
-      } catch (error: any) {
-        if (error.code === '23505' && retries < maxRetries) {
-          retries++;
-          continue;
-        }
-        
-        console.error("Create Job Error:", {
-          error,
-          retries,
-          user: user.id,
-          jobData
-        });
-        toast.error(error.message || "Failed to create job");
-        return null;
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    toast.error("Failed to create job after multiple attempts. Please refresh and try again.");
-    return null;
-  };
-
-  const updateJob = async (id: string, jobData: Partial<Job>) => {
-    if (!user) return null;
-
+  while (retries < maxRetries) {
     try {
       setLoading(true);
-      const dbJobData: Record<string, any> = {};
-
-      if (jobData.customer) {
-        if (jobData.customer.name) dbJobData.customer_name = jobData.customer.name;
-        if (jobData.customer.phone) dbJobData.customer_phone = jobData.customer.phone;
-        dbJobData.customer_email = jobData.customer.email ?? null;
-      }
-
-      if (jobData.device) {
-        if (jobData.device.name) dbJobData.device_name = jobData.device.name;
-        if (jobData.device.model) dbJobData.device_model = jobData.device.model;
-        if (jobData.device.condition) dbJobData.device_condition = jobData.device.condition;
-      }
-
-      if (jobData.details) {
-        if (jobData.details.problem) dbJobData.problem = jobData.details.problem;
-        if (jobData.details.status) dbJobData.status = jobData.details.status;
-        if (typeof jobData.details.handling_fees !== 'undefined') {
-          dbJobData.handling_fees = jobData.details.handling_fees;
-        }
-      }
+      const dbJobData = await mapJobToDatabaseJob(jobData, user.id);
 
       const { data, error } = await supabase
         .from("jobs")
-        .update(dbJobData)
-        .eq("id", id)
-        .eq("jobs.user_id", user.id)  // Explicit table reference
+        .insert(dbJobData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        errors.push(error);
+        if (error.code === '23505') {
+          retries++;
+          await new Promise(resolve => setTimeout(resolve, 100));
+          continue;
+        }
+        throw error;
+      }
 
-      const updatedJob = mapDatabaseJobToJob(data);
-      setJobs(prev => prev.map(j => j.id === id ? updatedJob : j));
-      setJob(updatedJob);
-      toast.success("Job updated successfully");
-      return updatedJob;
+      const newJob = mapDatabaseJobToJob(data);
+      setJobs(prev => [newJob, ...prev]);
+      toast.success("Job created successfully");
+      return newJob;
     } catch (error: any) {
-      console.error("Update Job Error:", error);
-      toast.error(error.message || "Failed to update job");
+      errors.push(error);
+      if (retries < maxRetries) {
+        retries++;
+        await new Promise(resolve => setTimeout(resolve, 100));
+        continue;
+      }
+      
+      console.error("Final Create Job Error:", {
+        attempts: retries,
+        userId: user.id,
+        errors: errors.map(e => e.message),
+        jobData
+      });
+      
+      toast.error("Job creation failed. Please check customer details and try again.");
       return null;
     } finally {
       setLoading(false);
     }
-  };
-
-  const deleteJob = async (id: string) => {
-    if (!user) return false;
-
-    try {
-      setLoading(true);
-      const { error } = await supabase
-        .from("jobs")
-        .delete()
-        .eq("id", id)
-        .eq("jobs.user_id", user.id);  // Explicit table reference
-
-      if (error) throw error;
-
-      setJobs(prev => prev.filter(j => j.id !== id));
-      setJob(null);
-      toast.success("Job deleted successfully");
-      return true;
-    } catch (error: any) {
-      console.error("Delete Job Error:", error);
-      toast.error(error.message || "Failed to delete job");
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getJob = async (id: string) => {
-    if (!user) return null;
-
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("jobs")
-        .select("*")
-        .eq("id", id)
-        .eq("jobs.user_id", user.id)  // Explicit table reference
-        .single();
-
-      if (error) throw error;
-
-      const job = mapDatabaseJobToJob(data);
-      setJob(job);
-      return job;
-    } catch (error: any) {
-      console.error("Fetch Job Error:", error);
-      toast.error(error.message || "Failed to fetch job");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateJobStatus = async (id: string, status: JobStatus) => {
-    return updateJob(id, { 
-      details: { 
-        status,
-        problem: '',
-        handling_fees: 0
-      } 
-    });
-  };
-
-  return {
-    jobs,
-    job,
-    loading,
-    createJob,
-    updateJob,
-    updateJobStatus,
-    getJob,
-    deleteJob,
-    fetchJobs
-  };
-}
+  }
+  return null;
+};
