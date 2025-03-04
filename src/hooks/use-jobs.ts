@@ -166,119 +166,130 @@ export function useJobs() {
     toast.error("Failed to create job after multiple attempts");
     return null;
   };
+
   const updateJob = async (id: string, jobData: Partial<Job>) => {
-  if (!user) return null;
+    if (!user) return null;
 
-  try {
-    setLoading(true);
-    const updatePayload: Record<string, any> = {};
+    try {
+      setLoading(true);
+      const dbJobData: Record<string, any> = {};
 
-    // Customer updates
-    if (jobData.customer) {
-      if (jobData.customer.name) updatePayload.customer_name = jobData.customer.name;
-      if (jobData.customer.phone) updatePayload.customer_phone = jobData.customer.phone;
-      updatePayload.customer_email = jobData.customer.email ?? null;
-    }
-
-    // Device updates
-    if (jobData.device) {
-      if (jobData.device.name) updatePayload.device_name = jobData.device.name;
-      if (jobData.device.model) updatePayload.device_model = jobData.device.model;
-      if (jobData.device.condition) updatePayload.device_condition = jobData.device.condition;
-    }
-
-    // Detail updates
-    if (jobData.details) {
-      if (jobData.details.problem) updatePayload.problem = jobData.details.problem;
-      if (jobData.details.status) updatePayload.status = jobData.details.status;
-      if (typeof jobData.details.handling_fees !== 'undefined') {
-        updatePayload.handling_fees = jobData.details.handling_fees;
+      if (jobData.customer) {
+        if (jobData.customer.name) dbJobData.customer_name = jobData.customer.name;
+        if (jobData.customer.phone) dbJobData.customer_phone = jobData.customer.phone;
+        dbJobData.customer_email = jobData.customer.email ?? null;
       }
+
+      if (jobData.device) {
+        if (jobData.device.name) dbJobData.device_name = jobData.device.name;
+        if (jobData.device.model) dbJobData.device_model = jobData.device.model;
+        if (jobData.device.condition) dbJobData.device_condition = jobData.device.condition;
+      }
+
+      if (jobData.details) {
+        if (jobData.details.problem) dbJobData.problem = jobData.details.problem;
+        if (jobData.details.status) dbJobData.status = jobData.details.status;
+        if (typeof jobData.details.handling_fees !== 'undefined') {
+          dbJobData.handling_fees = jobData.details.handling_fees;
+        }
+      }
+
+      const { data, error } = await supabase
+        .from("jobs")
+        .update(dbJobData)
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      const updatedJob = mapDatabaseJobToJob(data);
+      setJobs(prev => prev.map(j => j.id === id ? updatedJob : j));
+      setJob(updatedJob);
+      toast.success("Job updated successfully");
+      return updatedJob;
+    } catch (error: any) {
+      console.error("Error updating job:", error);
+      toast.error(error.message || "Failed to update job");
+      return null;
+    } finally {
+      setLoading(false);
     }
+  };
 
-    const { data, error } = await supabase
-      .from("jobs")
-      .update(updatePayload)
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .select()
-      .single();
+  const updateJobStatus = async (id: string, status: JobStatus) => {
+    return updateJob(id, { 
+      details: { 
+        status,
+        problem: '',
+        handling_fees: 0
+      } 
+    });
+  };
 
-    if (error) throw error;
+  const getJob = async (id: string) => {
+    if (!user) return null;
 
-    const updatedJob = mapDatabaseJobToJob(data);
-    setJobs(prev => prev.map(j => j.id === id ? updatedJob : j));
-    setJob(updatedJob);
-    toast.success("Job updated successfully");
-    return updatedJob;
-  } catch (error: any) {
-    console.error("Error updating job:", error);
-    toast.error(error.message || "Failed to update job");
-    return null;
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .single();
 
-const updateJobStatus = async (id: string, status: JobStatus) => {
-  return updateJob(id, { 
-    details: { 
-      status,
-      problem: '',
-      handling_fees: 0
-    } 
-  });
-};
+      if (error) throw error;
+      
+      const job = mapDatabaseJobToJob(data);
+      setJob(job);
+      return job;
+    } catch (error: any) {
+      console.error("Error fetching job:", error);
+      toast.error(error.message || "Failed to fetch job");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-const getJob = async (id: string) => {
-  if (!user) return null;
+  const deleteJob = async (id: string) => {
+    if (!user) return false;
 
-  try {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("jobs")
-      .select("*")
-      .eq("id", id)
-      .eq("user_id", user.id)
-      .single();
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from("jobs")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user.id);
 
-    if (error) throw error;
+      if (error) throw error;
+      
+      setJobs(prev => prev.filter(j => j.id !== id));
+      setJob(null);
+      toast.success("Job deleted successfully");
+      return true;
+    } catch (error: any) {
+      console.error("Error deleting job:", error);
+      toast.error(error.message || "Failed to delete job");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const job = mapDatabaseJobToJob(data);
-    setJob(job);
-    return job;
-  } catch (error: any) {
-    console.error("Error fetching job:", error);
-    toast.error(error.message || "Failed to fetch job");
-    return null;
-  } finally {
-    setLoading(false);
-  }
-};
-
-const deleteJob = async (id: string) => {
-  if (!user) return false;
-
-  try {
-    setLoading(true);
-    const { error } = await supabase
-      .from("jobs")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", user.id);
-
-    if (error) throw error;
-
-    setJobs(prev => prev.filter(j => j.id !== id));
-    setJob(null);
-    toast.success("Job deleted successfully");
-    return true;
-  } catch (error: any) {
-    console.error("Error deleting job:", error);
-    toast.error(error.message || "Failed to delete job");
-    return false;
-  } finally {
-    setLoading(false);
-  }
-};
-} 
+  // Proper closing of useJobs function
+  return { 
+    jobs, 
+    job,
+    loading, 
+    createJob, 
+    updateJob, 
+    updateJobStatus, 
+    getJob,
+    deleteJob,
+    fetchJobs
+  };
+} // Closing brace added here
