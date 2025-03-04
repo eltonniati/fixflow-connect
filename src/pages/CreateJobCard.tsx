@@ -69,7 +69,7 @@ export default function CreateJobCard() {
       const result = await createJob(newJobData);
       
       if (result) {
-        toast.success("Job card created successfully");
+        toast.success(`Job card created successfully: ${result.job_card_number}`);
         navigate("/job-cards");
       } else {
         toast.error("Failed to create job card");

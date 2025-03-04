@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, generateRandomString, getLastFourDigits, getPrefix } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import type { Job, JobStatus } from "@/lib/types";
@@ -31,7 +31,39 @@ const mapDatabaseJobToJob = (dbJob: any): Job => {
   };
 };
 
-const mapJobToDatabaseJob = (job: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>, userId: string) => {
+// Generate a unique job card number
+const generateUniqueJobCardNumber = async (customerName: string, customerPhone: string): Promise<string> => {
+  // Generate components for job card number
+  const timestamp = Date.now().toString().slice(-5); // Last 5 digits of timestamp
+  const namePrefix = getPrefix(customerName);
+  const phoneDigits = getLastFourDigits(customerPhone);
+  const randomStr = generateRandomString(3); // Random 3 character string
+  
+  // Combine components
+  const jobCardNumber = `${namePrefix}${phoneDigits}-${randomStr}${timestamp}`;
+  
+  // Check if this job card number already exists
+  const { data } = await supabase
+    .from("jobs")
+    .select("job_card_number")
+    .eq("job_card_number", jobCardNumber)
+    .single();
+  
+  // If it exists (very unlikely but possible), try again with a new random string
+  if (data) {
+    return generateUniqueJobCardNumber(customerName, customerPhone);
+  }
+  
+  return jobCardNumber;
+};
+
+const mapJobToDatabaseJob = async (
+  job: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>, 
+  userId: string
+) => {
+  // Generate a unique job card number
+  const jobCardNumber = await generateUniqueJobCardNumber(job.customer.name, job.customer.phone);
+  
   return {
     customer_name: job.customer.name,
     customer_phone: job.customer.phone,
@@ -42,7 +74,7 @@ const mapJobToDatabaseJob = (job: Omit<Job, 'id' | 'job_card_number' | 'created_
     problem: job.details.problem,
     status: job.details.status,
     handling_fees: job.details.handling_fees,
-    job_card_number: '', // Will be set by database trigger
+    job_card_number: jobCardNumber, // Set the generated job card number
     user_id: userId
   };
 };
@@ -114,7 +146,7 @@ export function useJobs() {
     try {
       setLoading(true);
 
-      const dbJobData = mapJobToDatabaseJob(jobData, user.id);
+      const dbJobData = await mapJobToDatabaseJob(jobData, user.id);
 
       const { data, error } = await supabase
         .from("jobs")
