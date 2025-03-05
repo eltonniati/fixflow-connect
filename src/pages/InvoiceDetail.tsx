@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { useInvoiceDetails } from "@/hooks/use-invoice-details";
 import { InvoiceActions } from "@/components/invoice/InvoiceActions";
@@ -11,13 +11,14 @@ import { InvoiceDetails } from "@/components/invoice/InvoiceDetails";
 import { PrintableInvoice } from "@/components/invoice/PrintableInvoice";
 import { InvoiceNotFound } from "@/components/invoice/InvoiceNotFound";
 import { PrintDialog } from "@/components/invoice/PrintDialog";
+import { Card } from "@/components/ui/card";
 
 const InvoiceDetail = () => {
   const { invoiceId } = useParams<{ invoiceId: string }>();
   const navigate = useNavigate();
   const { invoice, loading, getInvoice, updateInvoice } = useInvoiceDetails();
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
-  const [isPrintReady, setIsPrintReady] = useState(false);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
   const printableInvoiceRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -28,15 +29,15 @@ const InvoiceDetail = () => {
 
   const handlePrintOrPDF = useReactToPrint({
     documentTitle: `Invoice_${invoice?.invoice_number || "unknown"}`,
-    contentRef: printableInvoiceRef,
+    content: () => printableInvoiceRef.current,
     onAfterPrint: () => {
-      setIsPrintReady(false);
+      setIsPreviewMode(false);
       toast.success("Invoice printed/saved successfully");
     },
     onPrintError: (error) => {
       console.error("Print error:", error);
       toast.error("Failed to print invoice");
-      setIsPrintReady(false);
+      setIsPreviewMode(false);
     },
   });
 
@@ -54,7 +55,7 @@ const InvoiceDetail = () => {
 
   const handlePrint = () => {
     setIsPrintDialogOpen(false);
-    setIsPrintReady(true);
+    setIsPreviewMode(true);
     
     // Small delay to ensure the print content is ready
     setTimeout(() => {
@@ -62,9 +63,14 @@ const InvoiceDetail = () => {
         handlePrintOrPDF();
       } else {
         toast.error("Print content not ready");
-        setIsPrintReady(false);
+        setIsPreviewMode(false);
       }
     }, 200);
+  };
+
+  const handlePreview = () => {
+    setIsPrintDialogOpen(false);
+    setIsPreviewMode(true);
   };
 
   if (loading) {
@@ -88,29 +94,55 @@ const InvoiceDetail = () => {
         Back to Job Cards
       </Button>
 
-      <div className="grid gap-8 md:grid-cols-3">
-        <div className="md:col-span-1">
-          <InvoiceActions 
-            invoice={invoice} 
-            onPrint={() => setIsPrintDialogOpen(true)} 
-            onStatusChange={handleStatusChange} 
-          />
+      {isPreviewMode ? (
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">Invoice Preview</h2>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsPreviewMode(false)}>
+                Back to Details
+              </Button>
+              <Button onClick={handlePrintOrPDF}>
+                <Printer className="mr-2 h-4 w-4" />
+                Print Now
+              </Button>
+            </div>
+          </div>
+          
+          <div ref={printableInvoiceRef} className="print-content border rounded-lg shadow-sm bg-white">
+            <PrintableInvoice invoice={invoice} />
+          </div>
         </div>
+      ) : (
+        <div className="grid gap-8 md:grid-cols-3">
+          <div className="md:col-span-1">
+            <InvoiceActions 
+              invoice={invoice} 
+              onPrint={() => setIsPrintDialogOpen(true)} 
+              onStatusChange={handleStatusChange} 
+            />
+          </div>
 
-        <div className="md:col-span-2">
-          <InvoiceDetails invoice={invoice} />
+          <div className="md:col-span-2">
+            <InvoiceDetails invoice={invoice} />
+          </div>
         </div>
-      </div>
+      )}
 
       <PrintDialog 
         open={isPrintDialogOpen} 
         onOpenChange={setIsPrintDialogOpen} 
-        onPrint={handlePrint} 
+        onPrint={handlePrint}
+        onPreview={handlePreview}
+        showPreviewOption={true}
       />
 
-      <div ref={printableInvoiceRef} className={isPrintReady ? "print-content" : "hidden print-content"}>
-        {isPrintReady && <PrintableInvoice invoice={invoice} />}
-      </div>
+      {/* Hidden printable content when not in preview mode */}
+      {!isPreviewMode && (
+        <div ref={printableInvoiceRef} className="hidden">
+          <PrintableInvoice invoice={invoice} />
+        </div>
+      )}
     </div>
   );
 };

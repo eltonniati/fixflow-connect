@@ -18,6 +18,7 @@ import { useCompanies } from "@/hooks/use-companies";
 import { JobStatus } from "@/lib/types";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Link } from 'react-router-dom';
+import { PrintDialog } from "@/components/invoice/PrintDialog";
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-ZA", {
@@ -131,7 +132,7 @@ const JobDetail = () => {
   const [editedDeviceModel, setEditedDeviceModel] = useState("");
   const [editedDeviceCondition, setEditedDeviceCondition] = useState("");
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
-  const [isPrintReady, setIsPrintReady] = useState(false);
+  const [isPreviewMode, setIsPreviewMode] = useState(false);
   const jobCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -225,23 +226,38 @@ const JobDetail = () => {
     setIsDeleteDialogOpen(false);
   };
 
+  const handlePrintOrPDF = useReactToPrint({
+    documentTitle: `JobCard_${job?.job_card_number || "unknown"}`,
+    content: () => jobCardRef.current,
+    onAfterPrint: () => {
+      setIsPreviewMode(false);
+      toast.success("Job card printed successfully");
+    },
+    onPrintError: (error) => {
+      console.error("Print error:", error);
+      toast.error("Failed to print job card");
+      setIsPreviewMode(false);
+    },
+  });
+
   const handlePrint = () => {
     setIsPrintDialogOpen(false);
-    setIsPrintReady(true);
+    setIsPreviewMode(true);
     
     setTimeout(() => {
       if (jobCardRef.current) {
         handlePrintOrPDF();
+      } else {
+        toast.error("Print content not ready");
+        setIsPreviewMode(false);
       }
     }, 200);
   };
 
-  const handlePrintOrPDF = useReactToPrint({
-    documentTitle: `JobCard_${job?.job_card_number || "unknown"}`,
-    onAfterPrint: () => {
-      setIsPrintReady(false);
-    },
-  });
+  const handlePreview = () => {
+    setIsPrintDialogOpen(false);
+    setIsPreviewMode(true);
+  };
 
   if (error) {
     return (
@@ -283,212 +299,244 @@ const JobDetail = () => {
         Back to Job Cards
       </Button>
 
-      <div className="grid gap-8 md:grid-cols-3">
-        <Card className="md:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Job Card #{job.job_card_number}</CardTitle>
-              <CardDescription>
-                Created on {format(new Date(job.created_at!), "MMMM d, yyyy")}
-              </CardDescription>
-            </div>
-            <div>
-              {isEditMode ? (
-                <div className="flex gap-2">
-                  <Button variant="secondary" onClick={handleSave}>
-                    Save
-                  </Button>
-                  <Button variant="ghost" onClick={handleEditToggle}>
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <Button onClick={handleEditToggle}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="company-name">Company</Label>
-                {isEditMode ? (
-                  <TextInput
-                    id="company-name"
-                    value={editedCompanyName}
-                    onChange={setEditedCompanyName}
-                  />
-                ) : (
-                  <p>{editedCompanyName}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="customer-name">Customer Name</Label>
-                {isEditMode ? (
-                  <TextInput
-                    id="customer-name"
-                    value={editedCustomerName}
-                    onChange={setEditedCustomerName}
-                  />
-                ) : (
-                  <p>{editedCustomerName}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="customer-phone">Customer Phone</Label>
-                {isEditMode ? (
-                  <TextInput
-                    id="customer-phone"
-                    value={editedCustomerPhone}
-                    onChange={setEditedCustomerPhone}
-                  />
-                ) : (
-                  <p>{editedCustomerPhone}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="customer-email">Customer Email</Label>
-                {isEditMode ? (
-                  <TextInput
-                    id="customer-email"
-                    type="email"
-                    value={editedCustomerEmail}
-                    onChange={setEditedCustomerEmail}
-                  />
-                ) : (
-                  <p>{editedCustomerEmail || "N/A"}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="device-name">Device Name</Label>
-                {isEditMode ? (
-                  <TextInput
-                    id="device-name"
-                    value={editedDeviceName}
-                    onChange={setEditedDeviceName}
-                  />
-                ) : (
-                  <p>{editedDeviceName}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="device-model">Device Model</Label>
-                {isEditMode ? (
-                  <TextInput
-                    id="device-model"
-                    value={editedDeviceModel}
-                    onChange={setEditedDeviceModel}
-                  />
-                ) : (
-                  <p>{editedDeviceModel}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="device-condition">Device Condition</Label>
-              {isEditMode ? (
-                <TextInput
-                  id="device-condition"
-                  value={editedDeviceCondition}
-                  onChange={setEditedDeviceCondition}
-                />
-              ) : (
-                <p>{editedDeviceCondition}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="problem-description">Problem Description</Label>
-              {isEditMode ? (
-                <Textarea
-                  id="problem-description"
-                  value={editedProblem}
-                  onChange={(e) => setEditedProblem(e.target.value)}
-                />
-              ) : (
-                <p>{editedProblem}</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle>Job Card Actions</CardTitle>
-            <CardDescription>Manage this job card</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="status">Status</Label>
-              {isEditMode ? (
-                <Select value={editedStatus} onValueChange={handleStatusChange}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="In Progress">In Progress</SelectItem>
-                    <SelectItem value="Finished">Finished</SelectItem>
-                    <SelectItem value="Waiting for Parts">Waiting for Parts</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Badge>{editedStatus}</Badge>
-              )}
-            </div>
-
-            <div>
-              <Label htmlFor="handling-fees">Handling Fees</Label>
-              {isEditMode ? (
-                <Input
-                  id="handling-fees"
-                  type="number"
-                  value={editedHandlingFees}
-                  onChange={(e) =>
-                    setEditedHandlingFees(Number(e.target.value))
-                  }
-                />
-              ) : (
-                <p>{formatCurrency(editedHandlingFees)}</p>
-              )}
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col items-stretch gap-2">
-            <Button 
-              className="w-full" 
-              variant="outline" 
-              onClick={() => setIsPrintDialogOpen(true)}
-            >
-              <Printer className="mr-2 h-4 w-4" />
-              Print Job Card
-            </Button>
-            <Link to={`/invoices/new/${job.id}`} className="w-full">
-              <Button className="w-full">
-                Create Invoice
+      {isPreviewMode ? (
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-2xl font-bold">Job Card Preview</h2>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsPreviewMode(false)}>
+                Back to Details
               </Button>
-            </Link>
-            <Button
-              className="w-full"
-              variant="destructive"
-              onClick={() => setIsDeleteDialogOpen(true)}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete Job Card
-            </Button>
-          </CardFooter>
-        </Card>
-      </div>
+              <Button onClick={handlePrintOrPDF}>
+                <Printer className="mr-2 h-4 w-4" />
+                Print Now
+              </Button>
+            </div>
+          </div>
+          
+          <div ref={jobCardRef} className="print-content p-4 border rounded-lg shadow-sm bg-white">
+            <PrintableJobCard 
+              job={job}
+              customerName={editedCustomerName}
+              customerPhone={editedCustomerPhone}
+              customerEmail={editedCustomerEmail}
+              deviceName={editedDeviceName}
+              deviceModel={editedDeviceModel}
+              deviceCondition={editedDeviceCondition}
+              problem={editedProblem}
+              handlingFees={editedHandlingFees}
+              companyName={editedCompanyName}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-8 md:grid-cols-3">
+          <Card className="md:col-span-2">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Job Card #{job.job_card_number}</CardTitle>
+                <CardDescription>
+                  Created on {format(new Date(job.created_at!), "MMMM d, yyyy")}
+                </CardDescription>
+              </div>
+              <div>
+                {isEditMode ? (
+                  <div className="flex gap-2">
+                    <Button variant="secondary" onClick={handleSave}>
+                      Save
+                    </Button>
+                    <Button variant="ghost" onClick={handleEditToggle}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button onClick={handleEditToggle}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="company-name">Company</Label>
+                  {isEditMode ? (
+                    <TextInput
+                      id="company-name"
+                      value={editedCompanyName}
+                      onChange={setEditedCompanyName}
+                    />
+                  ) : (
+                    <p>{editedCompanyName}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="customer-name">Customer Name</Label>
+                  {isEditMode ? (
+                    <TextInput
+                      id="customer-name"
+                      value={editedCustomerName}
+                      onChange={setEditedCustomerName}
+                    />
+                  ) : (
+                    <p>{editedCustomerName}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="customer-phone">Customer Phone</Label>
+                  {isEditMode ? (
+                    <TextInput
+                      id="customer-phone"
+                      value={editedCustomerPhone}
+                      onChange={setEditedCustomerPhone}
+                    />
+                  ) : (
+                    <p>{editedCustomerPhone}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="customer-email">Customer Email</Label>
+                  {isEditMode ? (
+                    <TextInput
+                      id="customer-email"
+                      type="email"
+                      value={editedCustomerEmail}
+                      onChange={setEditedCustomerEmail}
+                    />
+                  ) : (
+                    <p>{editedCustomerEmail || "N/A"}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="device-name">Device Name</Label>
+                  {isEditMode ? (
+                    <TextInput
+                      id="device-name"
+                      value={editedDeviceName}
+                      onChange={setEditedDeviceName}
+                    />
+                  ) : (
+                    <p>{editedDeviceName}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="device-model">Device Model</Label>
+                  {isEditMode ? (
+                    <TextInput
+                      id="device-model"
+                      value={editedDeviceModel}
+                      onChange={setEditedDeviceModel}
+                    />
+                  ) : (
+                    <p>{editedDeviceModel}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="device-condition">Device Condition</Label>
+                {isEditMode ? (
+                  <TextInput
+                    id="device-condition"
+                    value={editedDeviceCondition}
+                    onChange={setEditedDeviceCondition}
+                  />
+                ) : (
+                  <p>{editedDeviceCondition}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="problem-description">Problem Description</Label>
+                {isEditMode ? (
+                  <Textarea
+                    id="problem-description"
+                    value={editedProblem}
+                    onChange={(e) => setEditedProblem(e.target.value)}
+                  />
+                ) : (
+                  <p>{editedProblem}</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-1">
+            <CardHeader>
+              <CardTitle>Job Card Actions</CardTitle>
+              <CardDescription>Manage this job card</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="status">Status</Label>
+                {isEditMode ? (
+                  <Select value={editedStatus} onValueChange={handleStatusChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="In Progress">In Progress</SelectItem>
+                      <SelectItem value="Finished">Finished</SelectItem>
+                      <SelectItem value="Waiting for Parts">Waiting for Parts</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Badge>{editedStatus}</Badge>
+                )}
+              </div>
+
+              <div>
+                <Label htmlFor="handling-fees">Handling Fees</Label>
+                {isEditMode ? (
+                  <Input
+                    id="handling-fees"
+                    type="number"
+                    value={editedHandlingFees}
+                    onChange={(e) =>
+                      setEditedHandlingFees(Number(e.target.value))
+                    }
+                  />
+                ) : (
+                  <p>{formatCurrency(editedHandlingFees)}</p>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-col items-stretch gap-2">
+              <Button 
+                className="w-full" 
+                variant="outline" 
+                onClick={() => setIsPrintDialogOpen(true)}
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Print Job Card
+              </Button>
+              <Link to={`/invoices/new/${job.id}`} className="w-full">
+                <Button className="w-full">
+                  Create Invoice
+                </Button>
+              </Link>
+              <Button
+                className="w-full"
+                variant="destructive"
+                onClick={() => setIsDeleteDialogOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Job Card
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      )}
 
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -509,26 +557,16 @@ const JobDetail = () => {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Print Job Card</DialogTitle>
-            <DialogDescription>Print or save this job card as PDF</DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex justify-between">
-            <Button variant="outline" onClick={() => setIsPrintDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handlePrint}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PrintDialog 
+        open={isPrintDialogOpen} 
+        onOpenChange={setIsPrintDialogOpen} 
+        onPrint={handlePrint}
+        onPreview={handlePreview}
+        showPreviewOption={true}
+      />
 
-      <div ref={jobCardRef} className={isPrintReady ? "print-content" : "hidden print-content"}>
-        {isPrintReady && (
+      {!isPreviewMode && (
+        <div ref={jobCardRef} className="hidden">
           <PrintableJobCard 
             job={job}
             customerName={editedCustomerName}
@@ -541,8 +579,8 @@ const JobDetail = () => {
             handlingFees={editedHandlingFees}
             companyName={editedCompanyName}
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
