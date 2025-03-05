@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
@@ -228,7 +229,7 @@ const JobDetail = () => {
 
   const handlePrintOrPDF = useReactToPrint({
     documentTitle: `JobCard_${job?.job_card_number || "unknown"}`,
-    content: () => jobCardRef.current,
+    contentRef: jobCardRef,
     onAfterPrint: () => {
       setIsPreviewMode(false);
       toast.success("Job card printed successfully");
@@ -307,7 +308,7 @@ const JobDetail = () => {
               <Button variant="outline" onClick={() => setIsPreviewMode(false)}>
                 Back to Details
               </Button>
-              <Button onClick={handlePrintOrPDF}>
+              <Button onClick={() => handlePrintOrPDF()}>
                 <Printer className="mr-2 h-4 w-4" />
                 Print Now
               </Button>

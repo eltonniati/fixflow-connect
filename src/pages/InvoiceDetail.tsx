@@ -29,7 +29,7 @@ const InvoiceDetail = () => {
 
   const handlePrintOrPDF = useReactToPrint({
     documentTitle: `Invoice_${invoice?.invoice_number || "unknown"}`,
-    content: () => printableInvoiceRef.current,
+    contentRef: printableInvoiceRef,
     onAfterPrint: () => {
       setIsPreviewMode(false);
       toast.success("Invoice printed/saved successfully");
@@ -102,7 +102,7 @@ const InvoiceDetail = () => {
               <Button variant="outline" onClick={() => setIsPreviewMode(false)}>
                 Back to Details
               </Button>
-              <Button onClick={handlePrintOrPDF}>
+              <Button onClick={() => handlePrintOrPDF()}>
                 <Printer className="mr-2 h-4 w-4" />
                 Print Now
               </Button>
