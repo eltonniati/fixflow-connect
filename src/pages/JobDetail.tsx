@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
@@ -20,7 +19,6 @@ import { JobStatus } from "@/lib/types";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Link } from 'react-router-dom';
 
-// Helper function for currency formatting
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-ZA", {
     style: 'currency',
@@ -28,7 +26,6 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-// Printable Job Card Component
 const PrintableJobCard = ({ 
   job, 
   customerName, 
@@ -98,7 +95,6 @@ const PrintableJobCard = ({
   </div>
 );
 
-// Input change handler component to fix TypeScript errors
 type InputChangeHandlerProps = {
   value: string;
   onChange: (value: string) => void;
@@ -120,7 +116,7 @@ const TextInput = ({ value, onChange, id, placeholder, type = "text" }: InputCha
 const JobDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { job, loading, getJob, updateJob, deleteJob } = useJobs();
+  const { job, loading, error, getJob, updateJob, deleteJob } = useJobs();
   const { companies, fetchCompanies } = useCompanies();
   const [isEditMode, setIsEditMode] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -139,14 +135,28 @@ const JobDetail = () => {
   const jobCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (id) {
-      getJob(id);
-    }
+    const loadJob = async () => {
+      if (id) {
+        console.log("Fetching job:", id);
+        try {
+          const jobData = await getJob(id);
+          if (!jobData) {
+            toast.error("Job card not found");
+          }
+        } catch (error) {
+          console.error("Error fetching job:", error);
+          toast.error("Failed to load job card");
+        }
+      }
+    };
+
+    loadJob();
     fetchCompanies();
   }, [id]);
 
   useEffect(() => {
     if (job) {
+      console.log("Setting edited values from job:", job);
       setEditedProblem(job.details.problem);
       setEditedStatus(job.details.status);
       setEditedHandlingFees(job.details.handling_fees);
@@ -233,6 +243,29 @@ const JobDetail = () => {
     },
   });
 
+  if (error) {
+    return (
+      <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
+        <Button variant="ghost" onClick={() => navigate("/job-cards")} className="mb-6">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Job Cards
+        </Button>
+        <Card>
+          <CardHeader>
+            <CardTitle>Error</CardTitle>
+            <CardDescription>There was an error loading the job card</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-destructive">{error}</p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={() => navigate("/job-cards")}>Return to Job Cards</Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
   if (loading || !job) {
     return (
       <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
@@ -251,7 +284,6 @@ const JobDetail = () => {
       </Button>
 
       <div className="grid gap-8 md:grid-cols-3">
-        {/* Job Card Details */}
         <Card className="md:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -280,7 +312,6 @@ const JobDetail = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2">
-              {/* Company */}
               <div className="space-y-2">
                 <Label htmlFor="company-name">Company</Label>
                 {isEditMode ? (
@@ -294,7 +325,6 @@ const JobDetail = () => {
                 )}
               </div>
 
-              {/* Customer */}
               <div className="space-y-2">
                 <Label htmlFor="customer-name">Customer Name</Label>
                 {isEditMode ? (
@@ -310,7 +340,6 @@ const JobDetail = () => {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              {/* Customer Phone */}
               <div className="space-y-2">
                 <Label htmlFor="customer-phone">Customer Phone</Label>
                 {isEditMode ? (
@@ -324,7 +353,6 @@ const JobDetail = () => {
                 )}
               </div>
 
-              {/* Customer Email */}
               <div className="space-y-2">
                 <Label htmlFor="customer-email">Customer Email</Label>
                 {isEditMode ? (
@@ -341,7 +369,6 @@ const JobDetail = () => {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              {/* Device Name */}
               <div className="space-y-2">
                 <Label htmlFor="device-name">Device Name</Label>
                 {isEditMode ? (
@@ -355,7 +382,6 @@ const JobDetail = () => {
                 )}
               </div>
 
-              {/* Device Model */}
               <div className="space-y-2">
                 <Label htmlFor="device-model">Device Model</Label>
                 {isEditMode ? (
@@ -370,7 +396,6 @@ const JobDetail = () => {
               </div>
             </div>
 
-            {/* Device Condition */}
             <div className="space-y-2">
               <Label htmlFor="device-condition">Device Condition</Label>
               {isEditMode ? (
@@ -384,7 +409,6 @@ const JobDetail = () => {
               )}
             </div>
 
-            {/* Problem Description */}
             <div className="space-y-2">
               <Label htmlFor="problem-description">Problem Description</Label>
               {isEditMode ? (
@@ -400,14 +424,12 @@ const JobDetail = () => {
           </CardContent>
         </Card>
 
-        {/* Job Card Actions */}
         <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Job Card Actions</CardTitle>
             <CardDescription>Manage this job card</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Status */}
             <div>
               <Label htmlFor="status">Status</Label>
               {isEditMode ? (
@@ -426,7 +448,6 @@ const JobDetail = () => {
               )}
             </div>
 
-            {/* Handling Fees */}
             <div>
               <Label htmlFor="handling-fees">Handling Fees</Label>
               {isEditMode ? (
@@ -469,7 +490,6 @@ const JobDetail = () => {
         </Card>
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -489,7 +509,6 @@ const JobDetail = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Print Dialog */}
       <Dialog open={isPrintDialogOpen} onOpenChange={setIsPrintDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -508,7 +527,6 @@ const JobDetail = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Printable Job Card (hidden) */}
       <div ref={jobCardRef} className={isPrintReady ? "print-content" : "hidden print-content"}>
         {isPrintReady && (
           <PrintableJobCard 

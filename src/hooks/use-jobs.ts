@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -87,6 +86,7 @@ export function useJobs() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [job, setJob] = useState<Job | null>(null);
 
   const fetchJobs = async () => {
     try {
@@ -131,6 +131,46 @@ export function useJobs() {
       channel.unsubscribe();
     };
   }, [user?.id]);
+
+  const getJob = async (id: string) => {
+    if (!id) return null;
+    
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log("Fetching job with ID:", id);
+
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        console.error("Job fetch error:", error);
+        throw error;
+      }
+      
+      if (!data) {
+        console.log("No job found with ID:", id);
+        setJob(null);
+        return null;
+      }
+
+      console.log("Job data retrieved:", data);
+      const jobData = mapDatabaseJobToJob(data);
+      setJob(jobData);
+      return jobData;
+    } catch (err) {
+      console.error("Get Job Error:", err);
+      setError(err instanceof Error ? err.message : "Failed to load job");
+      setJob(null);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const createJob = async (jobData: Omit<Job, 'id' | 'job_card_number' | 'created_at' | 'updated_at'>) => {
     if (!user) return null;
@@ -261,27 +301,13 @@ export function useJobs() {
 
   return {
     jobs,
+    job,
     loading,
     error,
     createJob,
     updateJob,
     deleteJob,
     fetchJobs,
-    getJob: async (id: string) => {
-      try {
-        const { data, error } = await supabase
-          .from("jobs")
-          .select("*")
-          .eq("id", id)
-          .single();
-
-        if (error) throw error;
-        
-        return mapDatabaseJobToJob(data);
-      } catch (err) {
-        console.error("Get Job Error:", err);
-        return null;
-      }
-    }
+    getJob
   };
 }
