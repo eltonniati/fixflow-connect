@@ -9,7 +9,7 @@ interface PrintableInvoiceProps {
 
 export const PrintableInvoice = ({ invoice }: PrintableInvoiceProps) => {
   const InvoiceTemplate = () => (
-    <div className="border-2 border-gray-200 p-4">
+    <div className="border-2 border-gray-200 p-4 max-w-[210mm] mx-auto">
       <div className="flex justify-between items-start mb-4">
         <div>
           <h1 className="text-2xl font-bold">INVOICE</h1>
@@ -97,16 +97,16 @@ export const PrintableInvoice = ({ invoice }: PrintableInvoiceProps) => {
   );
 
   return (
-    <div className="p-4 bg-white print:p-0">
+    <div className="p-4 bg-white print:p-0 print:m-0">
       <div className="flex flex-col">
         {/* First invoice - Customer Copy */}
-        <div className="mb-2 pb-1 border-b">
+        <div className="mb-8 pb-1 border-b print:mb-0 print:pb-8">
           <div className="text-xs font-bold mb-1 text-center">CUSTOMER COPY</div>
           <InvoiceTemplate />
         </div>
         
         {/* Second invoice - Device Copy */}
-        <div className="page-break-avoid">
+        <div className="page-break-before">
           <div className="text-xs font-bold mb-1 text-center">DEVICE COPY</div>
           <InvoiceTemplate />
         </div>
@@ -115,8 +115,18 @@ export const PrintableInvoice = ({ invoice }: PrintableInvoiceProps) => {
       <style>
         {`
           @media print {
-            .page-break-avoid {
-              page-break-inside: avoid;
+            body {
+              margin: 0;
+              padding: 0;
+            }
+            
+            .page-break-before {
+              page-break-before: always;
+            }
+            
+            @page {
+              size: A4;
+              margin: 10mm;
             }
           }
         `}
