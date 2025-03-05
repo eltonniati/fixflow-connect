@@ -83,6 +83,21 @@ export type Database = {
           },
         ]
       }
+      job_number_sequence: {
+        Row: {
+          last_number: number
+          user_id: string
+        }
+        Insert: {
+          last_number?: number
+          user_id: string
+        }
+        Update: {
+          last_number?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           created_at: string
@@ -139,7 +154,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_job_number: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

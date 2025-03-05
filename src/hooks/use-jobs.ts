@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -265,6 +266,22 @@ export function useJobs() {
     createJob,
     updateJob,
     deleteJob,
-    fetchJobs
+    fetchJobs,
+    getJob: async (id: string) => {
+      try {
+        const { data, error } = await supabase
+          .from("jobs")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (error) throw error;
+        
+        return mapDatabaseJobToJob(data);
+      } catch (err) {
+        console.error("Get Job Error:", err);
+        return null;
+      }
+    }
   };
 }
