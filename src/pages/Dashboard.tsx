@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -7,6 +8,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRightIcon, PlusCircle, ClipboardList, Settings, ShoppingBag, Clock, CheckCircle } from "lucide-react";
+import SignOutButton from "@/components/auth/SignOutButton";
 
 export default function Dashboard() {
   const { session } = useAuth();
@@ -95,6 +97,7 @@ export default function Dashboard() {
             <PlusCircle className="h-4 w-4" />
             New Job
           </Button>
+          <SignOutButton />
         </div>
       </div>
 
