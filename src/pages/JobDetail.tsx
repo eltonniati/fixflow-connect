@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
@@ -38,7 +37,8 @@ const PrintableJobCard = ({
   deviceCondition, 
   problem,
   handlingFees,
-  companyName
+  companyName,
+  companyLogo
 }: { 
   job: any, 
   customerName: string,
@@ -49,14 +49,26 @@ const PrintableJobCard = ({
   deviceCondition: string,
   problem: string,
   handlingFees: number,
-  companyName: string
+  companyName: string,
+  companyLogo?: string | null
 }) => (
   <div className="p-6 bg-white">
     <div className="border-2 border-gray-200 p-6">
       <div className="flex justify-between items-start mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">JOB CARD</h1>
-          <p className="text-lg font-medium">#{job?.job_card_number}</p>
+        <div className="flex items-center">
+          {companyLogo && (
+            <div className="mr-4">
+              <img 
+                src={companyLogo} 
+                alt="Company Logo" 
+                className="h-16 w-auto object-contain"
+              />
+            </div>
+          )}
+          <div>
+            <h1 className="text-3xl font-bold">JOB CARD</h1>
+            <p className="text-lg font-medium">#{job?.job_card_number}</p>
+          </div>
         </div>
         <div className="text-right">
           <p><strong>Created Date:</strong> {format(new Date(job?.created_at || new Date()), "MMMM d, yyyy")}</p>
@@ -135,6 +147,7 @@ const JobDetail = () => {
   const [isPrintDialogOpen, setIsPrintDialogOpen] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const jobCardRef = useRef<HTMLDivElement>(null);
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
 
   useEffect(() => {
     const loadJob = async () => {
@@ -171,6 +184,12 @@ const JobDetail = () => {
       setEditedDeviceCondition(job.device.condition);
     }
   }, [job]);
+
+  useEffect(() => {
+    if (companies && companies.length > 0) {
+      setCompanyLogo(companies[0]?.logo_url || null);
+    }
+  }, [companies]);
 
   const handleEditToggle = () => {
     setIsEditMode(!isEditMode);
@@ -327,6 +346,7 @@ const JobDetail = () => {
               problem={editedProblem}
               handlingFees={editedHandlingFees}
               companyName={editedCompanyName}
+              companyLogo={companyLogo}
             />
           </div>
         </div>
@@ -579,6 +599,7 @@ const JobDetail = () => {
             problem={editedProblem}
             handlingFees={editedHandlingFees}
             companyName={editedCompanyName}
+            companyLogo={companyLogo}
           />
         </div>
       )}
