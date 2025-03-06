@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Invoice, Job, InvoiceLineItem, InvoiceTax } from "@/lib/types";
@@ -25,11 +24,11 @@ export function useInvoiceDetails() {
   } = useInvoiceItems();
 
   // Wrapper for createInvoiceFromJob that also updates the state
-  const handleCreateInvoiceFromJob = async (job: Job): Promise<Invoice | null> => {
+  const handleCreateInvoiceFromJob = async (job: Job, chargeVat: boolean = true): Promise<Invoice | null> => {
     if (!user) return null;
     setLoading(true);
     try {
-      const newInvoice = await createInvoiceFromJob(job);
+      const newInvoice = await createInvoiceFromJob(job, chargeVat);
       if (newInvoice) {
         setInvoice(newInvoice);
       }
@@ -67,6 +66,39 @@ export function useInvoiceDetails() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Toggle VAT charging
+  const toggleVatCharging = async (chargeVat: boolean): Promise<Invoice | null> => {
+    if (!invoice || !invoice.id) return null;
+    
+    // If turning VAT on, add VAT tax
+    let updatedTaxes = [...invoice.taxes];
+    
+    if (chargeVat) {
+      // Only add VAT if it doesn't already exist
+      if (!updatedTaxes.some(tax => tax.name === "VAT")) {
+        updatedTaxes.push({
+          name: "VAT",
+          rate: 15,
+          amount: invoice.subtotal * 0.15
+        });
+      }
+    } else {
+      // Remove VAT tax if turning off
+      updatedTaxes = updatedTaxes.filter(tax => tax.name !== "VAT");
+    }
+    
+    // Recalculate totals
+    const taxTotal = updatedTaxes.reduce((sum, tax) => sum + tax.amount, 0);
+    const total = invoice.subtotal + taxTotal;
+    
+    return handleUpdateInvoice(invoice.id, {
+      taxes: updatedTaxes,
+      tax_total: taxTotal,
+      total,
+      charge_vat: chargeVat
+    });
   };
 
   // Wrapper for addLineItem
@@ -123,6 +155,7 @@ export function useInvoiceDetails() {
     createInvoiceFromJob: handleCreateInvoiceFromJob,
     getInvoice: handleGetInvoice,
     updateInvoice: handleUpdateInvoice,
+    toggleVatCharging,
     addLineItem: handleAddLineItem,
     updateLineItem: handleUpdateLineItem,
     removeLineItem: handleRemoveLineItem,

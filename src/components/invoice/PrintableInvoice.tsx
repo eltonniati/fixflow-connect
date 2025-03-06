@@ -25,22 +25,22 @@ export const PrintableInvoice = ({ invoice }: PrintableInvoiceProps) => {
   }, [companies]);
 
   const InvoiceTemplate = () => (
-    <div className="border-2 border-gray-200 p-8 max-w-[210mm] mx-auto min-h-[278mm] flex flex-col justify-between">
+    <div className="border-2 border-gray-200 p-12 max-w-[210mm] mx-auto min-h-[297mm] flex flex-col justify-between">
       <div>
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex justify-between items-start mb-12">
           <div className="flex items-center">
             {companyLogo && (
-              <div className="mr-4">
+              <div className="mr-6">
                 <img 
                   src={companyLogo} 
                   alt="Company Logo" 
-                  className="h-20 w-auto object-contain"
+                  className="h-24 w-auto object-contain"
                 />
               </div>
             )}
             <div>
-              <h1 className="text-3xl font-bold">INVOICE</h1>
-              <p className="text-xl font-medium">{invoice?.invoice_number}</p>
+              <h1 className="text-4xl font-bold">INVOICE</h1>
+              <p className="text-2xl font-medium">{invoice?.invoice_number}</p>
             </div>
           </div>
           <div className="text-right text-sm">
@@ -54,7 +54,7 @@ export const PrintableInvoice = ({ invoice }: PrintableInvoiceProps) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-8 mb-8 text-sm">
+        <div className="grid grid-cols-2 gap-8 mb-12 text-sm">
           <div>
             <h2 className="text-base font-semibold border-b mb-2">Bill To</h2>
             <p className="whitespace-pre-line">{invoice?.bill_description}</p>
@@ -70,7 +70,7 @@ export const PrintableInvoice = ({ invoice }: PrintableInvoiceProps) => {
           )}
         </div>
 
-        <div className="mb-8">
+        <div className="mb-12">
           <h2 className="text-base font-semibold border-b mb-2">Items</h2>
           <table className="w-full text-sm">
             <thead>
@@ -94,13 +94,13 @@ export const PrintableInvoice = ({ invoice }: PrintableInvoiceProps) => {
           </table>
         </div>
 
-        <div className="flex justify-end mb-8">
+        <div className="flex justify-end mb-12">
           <div className="w-48 text-sm">
             <div className="flex justify-between border-b py-2">
               <span>Subtotal</span>
               <span>{formatCurrency(invoice?.subtotal || 0)}</span>
             </div>
-            {invoice?.taxes.map((tax, index) => (
+            {invoice?.taxes.length > 0 && invoice.taxes.map((tax, index) => (
               <div key={index} className="flex justify-between border-b py-2">
                 <span>{tax.name} ({tax.rate}%)</span>
                 <span>{formatCurrency(tax.amount)}</span>
@@ -114,14 +114,14 @@ export const PrintableInvoice = ({ invoice }: PrintableInvoiceProps) => {
         </div>
 
         {invoice?.notes && (
-          <div className="mb-6 text-sm">
+          <div className="mb-8 text-sm">
             <h2 className="text-base font-semibold border-b mb-2">Notes</h2>
             <p>{invoice.notes}</p>
           </div>
         )}
 
         {invoice?.terms && (
-          <div className="mb-6 text-sm">
+          <div className="mb-8 text-sm">
             <h2 className="text-base font-semibold border-b mb-2">Terms & Conditions</h2>
             <p>{invoice.terms}</p>
           </div>

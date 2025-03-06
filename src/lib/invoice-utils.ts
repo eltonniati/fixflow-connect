@@ -23,7 +23,8 @@ export const mapDatabaseInvoiceToInvoice = (dbInvoice: any): Invoice => {
     total: dbInvoice.total || 0,
     notes: dbInvoice.invoice_data?.notes || "",
     terms: dbInvoice.invoice_data?.terms || "",
-    created_at: dbInvoice.created_at
+    created_at: dbInvoice.created_at,
+    charge_vat: dbInvoice.invoice_data?.charge_vat !== undefined ? dbInvoice.invoice_data.charge_vat : true
   };
 };
 
@@ -90,7 +91,8 @@ export const prepareInvoiceForDatabase = (invoice: Partial<Invoice>) => {
     subtotal: invoice.subtotal,
     tax_total: invoice.tax_total,
     notes: invoice.notes || "",
-    terms: invoice.terms || ""
+    terms: invoice.terms || "",
+    charge_vat: invoice.charge_vat !== undefined ? invoice.charge_vat : true
   };
 
   return {

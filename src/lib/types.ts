@@ -70,6 +70,7 @@ export interface Invoice {
   notes?: string;
   terms?: string;
   created_at?: string;
+  charge_vat?: boolean;
 }
 
 export interface DatabaseInvoice {
@@ -90,6 +91,7 @@ export interface DatabaseInvoice {
     tax_total: number;
     notes?: string;
     terms?: string;
+    charge_vat?: boolean;
   };
   jobs?: any;
 }

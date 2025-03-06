@@ -49,13 +49,23 @@ const InvoiceForm = () => {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const { getJob } = useJobs();
-  const { createInvoiceFromJob, invoice, addLineItem, updateLineItem, removeLineItem, updateInvoice, saveInvoice } = useInvoiceDetails();
+  const { 
+    createInvoiceFromJob, 
+    invoice, 
+    addLineItem, 
+    updateLineItem, 
+    removeLineItem, 
+    updateInvoice, 
+    saveInvoice,
+    toggleVatCharging 
+  } = useInvoiceDetails();
   const { companies } = useCompanies();
   
   const [job, setJob] = useState<Job | null>(null);
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [chargeVat, setChargeVat] = useState(true);
   
   const [newItemDescription, setNewItemDescription] = useState("");
   const [newItemQuantity, setNewItemQuantity] = useState(1);
@@ -82,7 +92,7 @@ const InvoiceForm = () => {
         setCompany(companies[0]);
       }
       
-      const invoiceData = await createInvoiceFromJob(jobData);
+      const invoiceData = await createInvoiceFromJob(jobData, chargeVat);
       if (!invoiceData) {
         toast.error("Failed to create invoice");
       }
@@ -92,6 +102,13 @@ const InvoiceForm = () => {
     
     loadData();
   }, [jobId, companies.length]);
+  
+  const handleVatToggle = async (value: boolean) => {
+    setChargeVat(value);
+    if (invoice && invoice.id) {
+      await toggleVatCharging(value);
+    }
+  };
   
   const handleAddLineItem = () => {
     if (!newItemDescription || newItemQuantity <= 0 || newItemUnitPrice <= 0) {
@@ -250,6 +267,17 @@ const InvoiceForm = () => {
                     onChange={(e) => updateInvoice(invoice.id!, { due_date: e.target.value })}
                   />
                 </div>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <Label htmlFor="charge-vat">Charge VAT</Label>
+                <input
+                  type="checkbox"
+                  id="charge-vat"
+                  checked={chargeVat}
+                  onChange={(e) => handleVatToggle(e.target.checked)}
+                  className="h-4 w-4"
+                />
               </div>
               
               <div className="space-y-2">

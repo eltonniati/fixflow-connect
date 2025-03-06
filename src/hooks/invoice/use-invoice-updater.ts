@@ -18,7 +18,7 @@ export function useInvoiceUpdater() {
       };
       
       // Recalculate totals if line items or taxes were updated
-      if (updates.line_items || updates.taxes) {
+      if (updates.line_items || updates.taxes || updates.charge_vat !== undefined) {
         const { subtotal, tax_total, total, taxes } = calculateInvoiceTotals(
           updatedInvoice.line_items,
           updatedInvoice.taxes

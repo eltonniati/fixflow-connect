@@ -13,7 +13,7 @@ import {
 export function useInvoiceCreator() {
   const [loading, setLoading] = useState(false);
 
-  const createInvoiceFromJob = async (job: Job): Promise<Invoice | null> => {
+  const createInvoiceFromJob = async (job: Job, chargeVat: boolean = true): Promise<Invoice | null> => {
     if (!job.id) return null;
 
     try {
@@ -23,14 +23,14 @@ export function useInvoiceCreator() {
         createLineItem("Handling Fees", 1, job.details.handling_fees)
       ];
 
-      // Default tax (VAT)
-      const taxes = [
+      // Only add VAT if chargeVat is true
+      const taxes = chargeVat ? [
         {
           name: "VAT",
           rate: 15,
           amount: job.details.handling_fees * 0.15
         }
-      ];
+      ] : [];
 
       const { subtotal, tax_total, total } = calculateInvoiceTotals(lineItems, taxes);
 
@@ -52,7 +52,8 @@ export function useInvoiceCreator() {
         bill_amount: subtotal,
         total: total,
         notes: "",
-        terms: "Payment due within 30 days."
+        terms: "Payment due within 30 days.",
+        charge_vat: chargeVat
       };
 
       const invoiceData = {

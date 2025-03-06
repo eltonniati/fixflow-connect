@@ -60,7 +60,7 @@ export const InvoiceDetails = ({ invoice }: InvoiceDetailsProps) => {
               <Label className="text-muted-foreground">Subtotal</Label>
               <p className="font-medium">{formatCurrency(invoice.subtotal)}</p>
             </div>
-            {invoice.taxes.map((tax, index) => (
+            {invoice.taxes.length > 0 && invoice.taxes.map((tax, index) => (
               <div key={index} className="flex justify-between">
                 <Label className="text-muted-foreground">{tax.name} ({tax.rate}%)</Label>
                 <p className="font-medium">{formatCurrency(tax.amount)}</p>
