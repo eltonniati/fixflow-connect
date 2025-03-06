@@ -4,16 +4,32 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useJobs } from "@/hooks/use-jobs";
 import { useCompany } from "@/hooks/use-company";
+import { useAnalytics } from "@/hooks/use-analytics";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRightIcon, PlusCircle, ClipboardList, Settings, ShoppingBag, Clock, CheckCircle } from "lucide-react";
+import { AnalyticCard } from "@/components/dashboard/AnalyticCard";
+import { JobsChart, RevenueChart } from "@/components/dashboard/AnalyticsCharts";
+import { 
+  ArrowRightIcon, 
+  PlusCircle, 
+  ClipboardList, 
+  Settings, 
+  ShoppingBag, 
+  Clock, 
+  CheckCircle,
+  DollarSign,
+  TrendingUp,
+  AlertCircle,
+  BarChart
+} from "lucide-react";
 import SignOutButton from "@/components/auth/SignOutButton";
 
 export default function Dashboard() {
   const { session } = useAuth();
   const { jobs, loading: jobsLoading } = useJobs();
   const { company, loading: companyLoading } = useCompany();
+  const analytics = useAnalytics();
   const [jobsByStatus, setJobsByStatus] = useState<{ [key: string]: number }>({});
   const navigate = useNavigate();
 
@@ -61,9 +77,18 @@ export default function Dashboard() {
     }
   };
 
-  const isLoading = jobsLoading || companyLoading;
+  const isLoading = jobsLoading || companyLoading || analytics.loading;
 
   const recentJobs = jobs.slice(0, 5);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
 
   if (!session) {
     navigate("/");
@@ -101,6 +126,38 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Analytics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <AnalyticCard
+          title="Total Revenue"
+          value={formatCurrency(analytics.totalRevenue)}
+          icon={<DollarSign className="h-5 w-5 text-green-600" />}
+        />
+        <AnalyticCard
+          title="Average Job Value"
+          value={formatCurrency(analytics.averageJobValue)}
+          icon={<TrendingUp className="h-5 w-5 text-blue-600" />}
+        />
+        <AnalyticCard
+          title="Completion Rate"
+          value={`${Math.round(analytics.completionRate)}%`}
+          icon={<CheckCircle className="h-5 w-5 text-green-600" />}
+        />
+        <AnalyticCard
+          title="Unpaid Invoices"
+          value={analytics.unpaidInvoices}
+          description={`${formatCurrency(analytics.unpaidAmount)} outstanding`}
+          icon={<AlertCircle className="h-5 w-5 text-amber-600" />}
+        />
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
+        <JobsChart data={analytics.jobCountByMonth} loading={isLoading} />
+        <RevenueChart data={analytics.revenueByMonth} loading={isLoading} />
+      </div>
+
+      {/* Job Status Cards */}
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {[1, 2, 3].map((i) => (
