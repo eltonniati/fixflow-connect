@@ -98,11 +98,11 @@ const Invoices = () => {
               visibility: hidden;
             }
             
-            .printable-table, .printable-table * {
+            .printable-content, .printable-content * {
               visibility: visible;
             }
             
-            .printable-table {
+            .printable-content {
               position: absolute;
               left: 0;
               top: 0;
@@ -111,6 +111,39 @@ const Invoices = () => {
               padding: 0;
               border: none;
               box-shadow: none;
+              font-family: Arial, sans-serif;
+            }
+            
+            .printable-content table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            
+            .printable-content th, .printable-content td {
+              border: 1px solid #ddd;
+              padding: 8px;
+              text-align: left;
+            }
+            
+            .printable-content th {
+              background-color: #f5f5f5;
+              font-weight: bold;
+            }
+            
+            .printable-content .print-header {
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            
+            .printable-content .print-header h1 {
+              font-size: 24px;
+              margin: 0;
+            }
+            
+            .printable-content .print-header p {
+              font-size: 14px;
+              color: #666;
+              margin: 0;
             }
             
             .no-print {
@@ -201,8 +234,12 @@ const Invoices = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <div ref={printableTableRef}>
-                  <Table className="printable-table">
+                <div ref={printableTableRef} className="printable-content">
+                  <div className="print-header">
+                    <h1>Invoices</h1>
+                    <p>Generated on: {format(new Date(), "MMM d, yyyy")}</p>
+                  </div>
+                  <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Invoice #</TableHead>
@@ -214,14 +251,10 @@ const Invoices = () => {
                     </TableHeader>
                     <TableBody>
                       {filteredInvoices.map((invoice) => (
-                        <TableRow 
-                          key={invoice.id}
-                          className="cursor-pointer"
-                          onClick={() => navigate(`/invoices/${invoice.id}`)}
-                        >
+                        <TableRow key={invoice.id}>
                           <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
                           <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
-                          <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
+                          <TableCell>{invoice.bill_description}</TableCell>
                           <TableCell>
                             <Badge className={getStatusColor(invoice.status)}>
                               {invoice.status}
