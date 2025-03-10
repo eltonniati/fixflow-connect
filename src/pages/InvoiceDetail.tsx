@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
@@ -11,7 +10,6 @@ import { InvoiceDetails } from "@/components/invoice/InvoiceDetails";
 import { PrintableInvoice } from "@/components/invoice/PrintableInvoice";
 import { InvoiceNotFound } from "@/components/invoice/InvoiceNotFound";
 import { PrintDialog } from "@/components/invoice/PrintDialog";
-import { Card } from "@/components/ui/card";
 
 const InvoiceDetail = () => {
   const { invoiceId } = useParams<{ invoiceId: string }>();
@@ -89,53 +87,85 @@ const InvoiceDetail = () => {
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
-      <Button variant="ghost" onClick={() => navigate("/job-cards")} className="mb-6">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Job Cards
-      </Button>
+      {/* Add print-specific styles directly in the component */}
+      <style>
+        {`
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            
+            .print-content, .print-content * {
+              visibility: visible;
+            }
+            
+            .print-content {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              margin: 0;
+              padding: 0;
+              border: none;
+              box-shadow: none;
+            }
+            
+            .no-print {
+              display: none;
+            }
+          }
+        `}
+      </style>
 
-      {isPreviewMode ? (
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">Invoice Preview</h2>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsPreviewMode(false)}>
-                Back to Details
-              </Button>
-              <Button onClick={() => handlePrintOrPDF()}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print Now
-              </Button>
+      <div className="no-print">
+        <Button variant="ghost" onClick={() => navigate("/job-cards")} className="mb-6">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Job Cards
+        </Button>
+
+        {isPreviewMode ? (
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Invoice Preview</h2>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setIsPreviewMode(false)}>
+                  Back to Details
+                </Button>
+                <Button onClick={() => handlePrintOrPDF()}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Now
+                </Button>
+              </div>
+            </div>
+            
+            <div ref={printableInvoiceRef} className="print-content border rounded-lg shadow-sm bg-white">
+              <PrintableInvoice invoice={invoice} />
             </div>
           </div>
-          
-          <div ref={printableInvoiceRef} className="print-content border rounded-lg shadow-sm bg-white">
-            <PrintableInvoice invoice={invoice} />
-          </div>
-        </div>
-      ) : (
-        <div className="grid gap-8 md:grid-cols-3">
-          <div className="md:col-span-1">
-            <InvoiceActions 
-              invoice={invoice} 
-              onPrint={() => setIsPrintDialogOpen(true)} 
-              onStatusChange={handleStatusChange} 
-            />
-          </div>
+        ) : (
+          <div className="grid gap-8 md:grid-cols-3">
+            <div className="md:col-span-1">
+              <InvoiceActions 
+                invoice={invoice} 
+                onPrint={() => setIsPrintDialogOpen(true)} 
+                onStatusChange={handleStatusChange} 
+              />
+            </div>
 
-          <div className="md:col-span-2">
-            <InvoiceDetails invoice={invoice} />
+            <div className="md:col-span-2">
+              <InvoiceDetails invoice={invoice} />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <PrintDialog 
-        open={isPrintDialogOpen} 
-        onOpenChange={setIsPrintDialogOpen} 
-        onPrint={handlePrint}
-        onPreview={handlePreview}
-        showPreviewOption={true}
-      />
+        <PrintDialog 
+          open={isPrintDialogOpen} 
+          onOpenChange={setIsPrintDialogOpen} 
+          onPrint={handlePrint}
+          onPreview={handlePreview}
+          showPreviewOption={true}
+        />
+      </div>
 
       {/* Hidden printable content when not in preview mode */}
       {!isPreviewMode && (
