@@ -305,16 +305,16 @@ const Invoices = () => {
         </Card>
 
         {/* Print and Send Buttons */}
-        <div className="mt-6 no-print flex gap-4">
-          <Button onClick={handlePrint}>
+        <div className="mt-6 no-print flex flex-col sm:flex-row gap-4">
+          <Button onClick={handlePrint} className="w-full sm:w-auto">
             <Printer className="mr-2 h-4 w-4" />
             Print Invoices
           </Button>
-          <Button onClick={handleSendEmail}>
+          <Button onClick={handleSendEmail} className="w-full sm:w-auto">
             <Mail className="mr-2 h-4 w-4" />
             Send via Email
           </Button>
-          <Button onClick={handleSendWhatsApp}>
+          <Button onClick={handleSendWhatsApp} className="w-full sm:w-auto">
             <MessageCircle className="mr-2 h-4 w-4" />
             Send via WhatsApp
           </Button>
