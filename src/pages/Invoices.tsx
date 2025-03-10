@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Search, FileText, Filter } from "lucide-react";
+import { ArrowLeft, Search, FileText, Filter, Printer } from "lucide-react";
 import { useInvoices } from "@/hooks/use-invoices";
 import { Invoice } from "@/lib/types";
 
@@ -78,7 +78,7 @@ const Invoices = () => {
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
       {/* Add print-specific styles directly in the component */}
       <style>
         {`
