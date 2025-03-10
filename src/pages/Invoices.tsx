@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Search, FileText, Filter, Printer } from "lucide-react";
 import { useInvoices } from "@/hooks/use-invoices";
 import { Invoice } from "@/lib/types";
+import { useReactToPrint } from "react-to-print";
+import { toast } from "sonner";
 
 // Helper function for currency formatting
 const formatCurrency = (amount: number) => {
@@ -74,29 +76,17 @@ const Invoices = () => {
     }
   };
 
-  const handlePrint = () => {
-    if (printableTableRef.current) {
-      // Ensure the content is fully rendered before printing
-      setTimeout(() => {
-        const originalContents = document.body.innerHTML;
-        const printableContents = printableTableRef.current?.innerHTML;
-
-        if (printableContents) {
-          // Replace the body content with the printable content
-          document.body.innerHTML = printableContents;
-          window.print();
-
-          // Restore the original content after printing
-          document.body.innerHTML = originalContents;
-
-          // Reinitialize any necessary event listeners or state
-          window.location.reload(); // Optional: Reload the page to reset the state
-        } else {
-          console.error("No printable content found");
-        }
-      }, 500); // Adjust the delay if necessary
-    }
-  };
+  const handlePrint = useReactToPrint({
+    content: () => printableTableRef.current,
+    documentTitle: "Invoices",
+    onAfterPrint: () => {
+      toast.success("Invoices printed successfully");
+    },
+    onPrintError: (error) => {
+      console.error("Print error:", error);
+      toast.error("Failed to print invoices");
+    },
+  });
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
