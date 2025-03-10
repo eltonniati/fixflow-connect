@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Search, FileText, Filter, Printer } from "lucide-react";
+import { ArrowLeft, Search, FileText, Filter, Printer, Mail, MessageCircle } from "lucide-react";
 import { useInvoices } from "@/hooks/use-invoices";
 import { Invoice } from "@/lib/types";
+import { useReactToPrint } from "react-to-print";
+import { toast } from "sonner";
 
 // Helper function for currency formatting
 const formatCurrency = (amount: number) => {
@@ -40,6 +42,7 @@ const Invoices = () => {
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const printableTableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Apply filters whenever search query or status filter changes
@@ -73,8 +76,26 @@ const Invoices = () => {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = useReactToPrint({
+    content: () => printableTableRef.current,
+    documentTitle: "Invoices",
+    onAfterPrint: () => {
+      toast.success("Invoices printed successfully");
+    },
+    onPrintError: (error) => {
+      console.error("Print error:", error);
+      toast.error("Failed to print invoices");
+    },
+  });
+
+  const handleSendEmail = () => {
+    // Implement email sending logic here
+    toast.info("Sending invoice via email...");
+  };
+
+  const handleSendWhatsApp = () => {
+    // Implement WhatsApp sending logic here
+    toast.info("Sending invoice via WhatsApp...");
   };
 
   return (
@@ -87,19 +108,72 @@ const Invoices = () => {
               visibility: hidden;
             }
             
-            .printable-table, .printable-table * {
+            .printable-content, .printable-content * {
               visibility: visible;
             }
             
-            .printable-table {
+            .printable-content {
               position: absolute;
               left: 0;
               top: 0;
               width: 100%;
               margin: 0;
               padding: 0;
-              border: none;
-              box-shadow: none;
+              font-family: Arial, sans-serif;
+              color: #333;
+            }
+            
+            .printable-content .invoice-header {
+              text-align: center;
+              margin-bottom: 20px;
+              padding: 20px;
+              background-color: #f5f5f5;
+              border-radius: 8px;
+            }
+            
+            .printable-content .invoice-header h1 {
+              font-size: 24px;
+              font-weight: bold;
+              margin: 0;
+              color: #333;
+            }
+            
+            .printable-content .invoice-header p {
+              font-size: 14px;
+              color: #666;
+              margin: 0;
+            }
+            
+            .printable-content table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 20px;
+            }
+            
+            .printable-content th, .printable-content td {
+              border: 1px solid #ddd;
+              padding: 10px;
+              text-align: left;
+            }
+            
+            .printable-content th {
+              background-color: #333;
+              color: #fff;
+              font-weight: bold;
+            }
+            
+            .printable-content tr:nth-child(even) {
+              background-color: #f9f9f9;
+            }
+            
+            .printable-content .footer {
+              text-align: center;
+              margin-top: 20px;
+              padding: 20px;
+              background-color: #f5f5f5;
+              border-radius: 8px;
+              font-size: 12px;
+              color: #666;
             }
             
             .no-print {
@@ -190,46 +264,59 @@ const Invoices = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <Table className="printable-table">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInvoices.map((invoice) => (
-                      <TableRow 
-                        key={invoice.id}
-                        className="cursor-pointer"
-                        onClick={() => navigate(`/invoices/${invoice.id}`)}
-                      >
-                        <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                        <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(invoice.status)}>
-                            {invoice.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <div ref={printableTableRef} className="printable-content">
+                  <div className="invoice-header">
+                    <h1>Invoice List</h1>
+                    <p>Generated on: {format(new Date(), "MMM d, yyyy")}</p>
+                  </div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Invoice #</th>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th className="text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredInvoices.map((invoice) => (
+                        <tr key={invoice.id}>
+                          <td className="font-medium">{invoice.invoice_number}</td>
+                          <td>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</td>
+                          <td>{invoice.bill_description}</td>
+                          <td>
+                            <Badge className={getStatusColor(invoice.status)}>
+                              {invoice.status}
+                            </Badge>
+                          </td>
+                          <td className="text-right">{formatCurrency(invoice.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="footer">
+                    <p>Thank you for your business!</p>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Print Button */}
-        <div className="mt-6 no-print">
+        {/* Print and Send Buttons */}
+        <div className="mt-6 no-print flex gap-4">
           <Button onClick={handlePrint}>
             <Printer className="mr-2 h-4 w-4" />
             Print Invoices
+          </Button>
+          <Button onClick={handleSendEmail}>
+            <Mail className="mr-2 h-4 w-4" />
+            Send via Email
+          </Button>
+          <Button onClick={handleSendWhatsApp}>
+            <MessageCircle className="mr-2 h-4 w-4" />
+            Send via WhatsApp
           </Button>
         </div>
       </div>
