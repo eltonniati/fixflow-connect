@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Search, FileText, Filter } from "lucide-react";
+import { ArrowLeft, Search, FileText, Filter, Printer } from "lucide-react";
 import { useInvoices } from "@/hooks/use-invoices";
 import { Invoice } from "@/lib/types";
 
@@ -40,6 +40,7 @@ const Invoices = () => {
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const printableTableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Apply filters whenever search query or status filter changes
@@ -74,7 +75,27 @@ const Invoices = () => {
   };
 
   const handlePrint = () => {
-    window.print();
+    if (printableTableRef.current) {
+      // Ensure the content is fully rendered before printing
+      setTimeout(() => {
+        const originalContents = document.body.innerHTML;
+        const printableContents = printableTableRef.current?.innerHTML;
+
+        if (printableContents) {
+          // Replace the body content with the printable content
+          document.body.innerHTML = printableContents;
+          window.print();
+
+          // Restore the original content after printing
+          document.body.innerHTML = originalContents;
+
+          // Reinitialize any necessary event listeners or state
+          window.location.reload(); // Optional: Reload the page to reset the state
+        } else {
+          console.error("No printable content found");
+        }
+      }, 500); // Adjust the delay if necessary
+    }
   };
 
   return (
@@ -149,92 +170,3 @@ const Invoices = () => {
                 size="sm"
                 onClick={() => handleStatusFilter("Sent")}
                 className="flex items-center gap-1"
-              >
-                <Filter className="h-3 w-3" />
-                Sent
-              </Button>
-              <Button
-                variant={statusFilter === "Paid" ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleStatusFilter("Paid")}
-                className="flex items-center gap-1"
-              >
-                <Filter className="h-3 w-3" />
-                Paid
-              </Button>
-              <Button
-                variant={statusFilter === "Overdue" ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleStatusFilter("Overdue")}
-                className="flex items-center gap-1"
-              >
-                <Filter className="h-3 w-3" />
-                Overdue
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex justify-center items-center h-32">
-                <p className="text-muted-foreground">Loading invoices...</p>
-              </div>
-            ) : filteredInvoices.length === 0 ? (
-              <div className="text-center py-6">
-                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">No invoices found</h3>
-                <p className="text-muted-foreground mt-1">
-                  {searchQuery || statusFilter
-                    ? "Try a different search or filter"
-                    : "Create your first invoice from a job card"}
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table className="printable-table">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInvoices.map((invoice) => (
-                      <TableRow 
-                        key={invoice.id}
-                        className="cursor-pointer"
-                        onClick={() => navigate(`/invoices/${invoice.id}`)}
-                      >
-                        <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                        <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(invoice.status)}>
-                            {invoice.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Print Button */}
-        <div className="mt-6 no-print">
-          <Button onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4" />
-            Print Invoices
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default Invoices;
