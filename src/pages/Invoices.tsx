@@ -73,135 +73,166 @@ const Invoices = () => {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
-      <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Dashboard
-      </Button>
+      {/* Add print-specific styles directly in the component */}
+      <style>
+        {`
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            
+            .printable-table, .printable-table * {
+              visibility: visible;
+            }
+            
+            .printable-table {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              margin: 0;
+              padding: 0;
+              border: none;
+              box-shadow: none;
+            }
+            
+            .no-print {
+              display: none;
+            }
+          }
+        `}
+      </style>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <CardTitle>Invoices</CardTitle>
-              <CardDescription>Manage and track all your invoices</CardDescription>
-            </div>
-            <div className="w-full md:w-auto">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search invoices..."
-                  className="pl-10 w-full md:w-[300px]"
-                  value={searchQuery}
-                  onChange={handleSearch}
-                />
+      <div className="no-print">
+        <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Dashboard
+        </Button>
+
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <CardTitle>Invoices</CardTitle>
+                <CardDescription>Manage and track all your invoices</CardDescription>
+              </div>
+              <div className="w-full md:w-auto">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search invoices..."
+                    className="pl-10 w-full md:w-[300px]"
+                    value={searchQuery}
+                    onChange={handleSearch}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2 mt-4">
-            <Button
-              variant={statusFilter === "Draft" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleStatusFilter("Draft")}
-              className="flex items-center gap-1"
-            >
-              <Filter className="h-3 w-3" />
-              Draft
-            </Button>
-            <Button
-              variant={statusFilter === "Sent" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleStatusFilter("Sent")}
-              className="flex items-center gap-1"
-            >
-              <Filter className="h-3 w-3" />
-              Sent
-            </Button>
-            <Button
-              variant={statusFilter === "Paid" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleStatusFilter("Paid")}
-              className="flex items-center gap-1"
-            >
-              <Filter className="h-3 w-3" />
-              Paid
-            </Button>
-            <Button
-              variant={statusFilter === "Overdue" ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleStatusFilter("Overdue")}
-              className="flex items-center gap-1"
-            >
-              <Filter className="h-3 w-3" />
-              Overdue
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center items-center h-32">
-              <p className="text-muted-foreground">Loading invoices...</p>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Button
+                variant={statusFilter === "Draft" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleStatusFilter("Draft")}
+                className="flex items-center gap-1"
+              >
+                <Filter className="h-3 w-3" />
+                Draft
+              </Button>
+              <Button
+                variant={statusFilter === "Sent" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleStatusFilter("Sent")}
+                className="flex items-center gap-1"
+              >
+                <Filter className="h-3 w-3" />
+                Sent
+              </Button>
+              <Button
+                variant={statusFilter === "Paid" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleStatusFilter("Paid")}
+                className="flex items-center gap-1"
+              >
+                <Filter className="h-3 w-3" />
+                Paid
+              </Button>
+              <Button
+                variant={statusFilter === "Overdue" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleStatusFilter("Overdue")}
+                className="flex items-center gap-1"
+              >
+                <Filter className="h-3 w-3" />
+                Overdue
+              </Button>
             </div>
-          ) : filteredInvoices.length === 0 ? (
-            <div className="text-center py-6">
-              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium">No invoices found</h3>
-              <p className="text-muted-foreground mt-1">
-                {searchQuery || statusFilter
-                  ? "Try a different search or filter"
-                  : "Create your first invoice from a job card"}
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredInvoices.map((invoice) => (
-                    <TableRow 
-                      key={invoice.id}
-                      className="cursor-pointer"
-                      onClick={() => navigate(`/invoices/${invoice.id}`)}
-                    >
-                      <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                      <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(invoice.status)}>
-                          {invoice.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
-                      <TableCell>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/invoices/${invoice.id}`);
-                          }}
-                        >
-                          <FileText className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center items-center h-32">
+                <p className="text-muted-foreground">Loading invoices...</p>
+              </div>
+            ) : filteredInvoices.length === 0 ? (
+              <div className="text-center py-6">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium">No invoices found</h3>
+                <p className="text-muted-foreground mt-1">
+                  {searchQuery || statusFilter
+                    ? "Try a different search or filter"
+                    : "Create your first invoice from a job card"}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table className="printable-table">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredInvoices.map((invoice) => (
+                      <TableRow 
+                        key={invoice.id}
+                        className="cursor-pointer"
+                        onClick={() => navigate(`/invoices/${invoice.id}`)}
+                      >
+                        <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                        <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(invoice.status)}>
+                            {invoice.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Print Button */}
+        <div className="mt-6 no-print">
+          <Button onClick={handlePrint}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print Invoices
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
