@@ -170,3 +170,94 @@ const Invoices = () => {
                 size="sm"
                 onClick={() => handleStatusFilter("Sent")}
                 className="flex items-center gap-1"
+              >
+                <Filter className="h-3 w-3" />
+                Sent
+              </Button>
+              <Button
+                variant={statusFilter === "Paid" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleStatusFilter("Paid")}
+                className="flex items-center gap-1"
+              >
+                <Filter className="h-3 w-3" />
+                Paid
+              </Button>
+              <Button
+                variant={statusFilter === "Overdue" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleStatusFilter("Overdue")}
+                className="flex items-center gap-1"
+              >
+                <Filter className="h-3 w-3" />
+                Overdue
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center items-center h-32">
+                <p className="text-muted-foreground">Loading invoices...</p>
+              </div>
+            ) : filteredInvoices.length === 0 ? (
+              <div className="text-center py-6">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium">No invoices found</h3>
+                <p className="text-muted-foreground mt-1">
+                  {searchQuery || statusFilter
+                    ? "Try a different search or filter"
+                    : "Create your first invoice from a job card"}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div ref={printableTableRef}>
+                  <Table className="printable-table">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Invoice #</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredInvoices.map((invoice) => (
+                        <TableRow 
+                          key={invoice.id}
+                          className="cursor-pointer"
+                          onClick={() => navigate(`/invoices/${invoice.id}`)}
+                        >
+                          <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                          <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(invoice.status)}>
+                              {invoice.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Print Button */}
+        <div className="mt-6 no-print">
+          <Button onClick={handlePrint}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print Invoices
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Invoices;
