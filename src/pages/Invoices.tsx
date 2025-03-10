@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { useInvoiceDetails } from "@/hooks/use-invoice-details";
 import { InvoiceActions } from "@/components/invoice/InvoiceActions";
 import { InvoiceDetails } from "@/components/invoice/InvoiceDetails";
-import { PrintableInvoice } from "@/components/invoice/PrintableInvoice";
 import { InvoiceNotFound } from "@/components/invoice/InvoiceNotFound";
 import { PrintDialog } from "@/components/invoice/PrintDialog";
 
@@ -23,7 +22,7 @@ const InvoiceDetail = () => {
     if (invoiceId) {
       getInvoice(invoiceId);
     }
-  }, [invoiceId]);
+  }, [invoiceId, getInvoice]);
 
   const handlePrintOrPDF = useReactToPrint({
     documentTitle: `Invoice_${invoice?.invoice_number || "unknown"}`,
@@ -54,8 +53,6 @@ const InvoiceDetail = () => {
   const handlePrint = () => {
     setIsPrintDialogOpen(false);
     setIsPreviewMode(true);
-    
-    // Small delay to ensure the print content is ready
     setTimeout(() => {
       if (printableInvoiceRef.current) {
         handlePrintOrPDF();
@@ -85,99 +82,187 @@ const InvoiceDetail = () => {
     return <InvoiceNotFound onBack={() => navigate("/job-cards")} />;
   }
 
+  const PrintableContent = () => (
+    <div className="print-content">
+      <div className="invoice-header">
+        <h1>INVOICE</h1>
+        <p>Invoice No: {invoice.invoice_number}</p>
+        <p>Date: {new Date(invoice.issue_date).toLocaleDateString()}</p>
+        <p>Due Date: {new Date(invoice.due_date).toLocaleDateString()}</p>
+      </div>
+      <div className="invoice-details">
+        <div className="billing-info">
+          <p><strong>Bill To:</strong></p>
+          <p>{invoice.customer_name}</p>
+          <p>{invoice.customer_title}</p>
+          <p>Phone: {invoice.customer_phone}</p>
+        </div>
+        <div className="billing-info">
+          <p><strong>Payment Details:</strong></p>
+          <p>Account No: {invoice.account_number}</p>
+          <p>Account Name: {invoice.account_name}</p>
+          <p>Bank Name: {invoice.bank_name}</p>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Description</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {invoice.items.map((item, index) => (
+            <tr key={index}>
+              <td>{index + 1}</td>
+              <td>{item.description}</td>
+              <td>{item.quantity}</td>
+              <td>${parseFloat(item.price).toFixed(2)}</td>
+              <td>${parseFloat(item.total).toFixed(2)}</td>
+            </tr>
+          ))}
+          <tr className="total-row">
+            <td colSpan={4} style={{ textAlign: 'right' }}>Grand Total:</td>
+            <td>${invoice.items.reduce((sum, item) => sum + parseFloat(item.total), 0).toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="footer">
+        <p>Thank you for your business!</p>
+        <p>Phone: {invoice.company_phone}</p>
+        <p>Website: {invoice.company_website}</p>
+        <p>Address: {invoice.company_address}</p>
+        <p><strong>Terms & Conditions:</strong></p>
+        <p>{invoice.terms_and_conditions}</p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
-      {/* Add print-specific styles directly in the component */}
       <style>
         {`
           @media print {
             body * {
               visibility: hidden;
             }
-            
             .print-content, .print-content * {
               visibility: visible;
             }
-            
             .print-content {
               position: absolute;
               left: 0;
               top: 0;
               width: 100%;
               margin: 0;
-              padding: 0;
-              font-family: Arial, sans-serif;
-              color: #333;
+              padding: 20px;
+              font-family: 'Helvetica', Arial, sans-serif;
+              color: #2d3748;
             }
             
             .print-content .invoice-header {
+              background: linear-gradient(135deg, #2b6cb0 0%, #3182ce 100%);
+              color: white;
+              padding: 25px;
+              border-radius: 12px 12px 0 0;
               text-align: center;
-              margin-bottom: 20px;
-              padding: 20px;
-              background-color: #f5f5f5;
-              border-radius: 8px;
+              margin-bottom: 0;
             }
             
             .print-content .invoice-header h1 {
-              font-size: 24px;
-              font-weight: bold;
+              font-size: 32px;
+              font-weight: 700;
               margin: 0;
-              color: #333;
+              letter-spacing: 1px;
             }
             
             .print-content .invoice-header p {
               font-size: 14px;
-              color: #666;
-              margin: 0;
+              margin: 4px 0;
+              opacity: 0.9;
             }
             
             .print-content .invoice-details {
-              display: flex;
-              justify-content: space-between;
-              margin-bottom: 20px;
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 20px;
+              padding: 25px;
+              background: #f7fafc;
+              border: 1px solid #e2e8f0;
+              border-top: none;
+            }
+            
+            .print-content .billing-info {
+              background: white;
               padding: 20px;
-              background-color: #f5f5f5;
               border-radius: 8px;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             }
             
-            .print-content .invoice-details div {
-              flex: 1;
+            .print-content .billing-info p {
+              margin: 6px 0;
+              font-size: 14px;
             }
             
-            .print-content .invoice-details div:last-child {
-              text-align: right;
+            .print-content .billing-info p strong {
+              color: #2b6cb0;
             }
             
             .print-content table {
               width: 100%;
               border-collapse: collapse;
-              margin-bottom: 20px;
-            }
-            
-            .print-content th, .print-content td {
-              border: 1px solid #ddd;
-              padding: 10px;
-              text-align: left;
+              margin: 20px 0;
+              background: white;
+              border-radius: 8px;
+              overflow: hidden;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             }
             
             .print-content th {
-              background-color: #333;
-              color: #fff;
-              font-weight: bold;
+              background: #2d3748;
+              color: white;
+              padding: 12px 15px;
+              font-weight: 600;
+              text-transform: uppercase;
+              font-size: 12px;
+              letter-spacing: 0.5px;
+            }
+            
+            .print-content td {
+              padding: 12px 15px;
+              border-bottom: 1px solid #edf2f7;
+              font-size: 14px;
+            }
+            
+            .print-content tr:last-child td {
+              border-bottom: none;
             }
             
             .print-content tr:nth-child(even) {
-              background-color: #f9f9f9;
+              background: #f7fafc;
+            }
+            
+            .print-content .total-row {
+              background: #edf2f7;
+              font-weight: 600;
             }
             
             .print-content .footer {
-              text-align: center;
-              margin-top: 20px;
+              background: #edf2f7;
               padding: 20px;
-              background-color: #f5f5f5;
-              border-radius: 8px;
+              border-radius: 0 0 12px 12px;
+              text-align: center;
               font-size: 12px;
-              color: #666;
+              color: #4a5568;
+              border: 1px solid #e2e8f0;
+              border-top: none;
+            }
+            
+            .print-content .footer p {
+              margin: 4px 0;
             }
             
             .no-print {
@@ -208,56 +293,8 @@ const InvoiceDetail = () => {
               </div>
             </div>
             
-            <div ref={printableInvoiceRef} className="print-content border rounded-lg shadow-sm bg-white">
-              <div className="invoice-header">
-                <h1>INVOICE</h1>
-                <p>Invoice Number: {invoice.invoice_number}</p>
-                <p>Date: {new Date(invoice.issue_date).toLocaleDateString()}</p>
-              </div>
-              <div className="invoice-details">
-                <div>
-                  <p><strong>INVOICE TO:</strong></p>
-                  <p>{invoice.customer_name}</p>
-                  <p>{invoice.customer_title}</p>
-                  <p>Phone: {invoice.customer_phone}</p>
-                </div>
-                <div>
-                  <p><strong>PAYMENT INFO:</strong></p>
-                  <p>Account No: {invoice.account_number}</p>
-                  <p>Account Name: {invoice.account_name}</p>
-                  <p>Bank Name: {invoice.bank_name}</p>
-                </div>
-              </div>
-              <table>
-                <thead>
-                  <tr>
-                    <th>NO</th>
-                    <th>DESCRIPTION</th>
-                    <th>QTY</th>
-                    <th>PRICE</th>
-                    <th>TOTAL</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoice.items.map((item, index) => (
-                    <tr key={index}>
-                      <td>{index + 1}</td>
-                      <td>{item.description}</td>
-                      <td>{item.quantity}</td>
-                      <td>{item.price}</td>
-                      <td>{item.total}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="footer">
-                <p>Thank you for your business!</p>
-                <p>Phone: {invoice.company_phone}</p>
-                <p>Website: {invoice.company_website}</p>
-                <p>Address: {invoice.company_address}</p>
-                <p><strong>Terms & Conditions:</strong></p>
-                <p>{invoice.terms_and_conditions}</p>
-              </div>
+            <div ref={printableInvoiceRef} className="print-content border rounded-lg shadow-lg">
+              <PrintableContent />
             </div>
           </div>
         ) : (
@@ -269,7 +306,6 @@ const InvoiceDetail = () => {
                 onStatusChange={handleStatusChange} 
               />
             </div>
-
             <div className="md:col-span-2">
               <InvoiceDetails invoice={invoice} />
             </div>
@@ -285,60 +321,9 @@ const InvoiceDetail = () => {
         />
       </div>
 
-      {/* Hidden printable content when not in preview mode */}
       {!isPreviewMode && (
         <div ref={printableInvoiceRef} className="hidden">
-          <div className="print-content">
-            <div className="invoice-header">
-              <h1>INVOICE</h1>
-              <p>Invoice Number: {invoice.invoice_number}</p>
-              <p>Date: {new Date(invoice.issue_date).toLocaleDateString()}</p>
-            </div>
-            <div className="invoice-details">
-              <div>
-                <p><strong>INVOICE TO:</strong></p>
-                <p>{invoice.customer_name}</p>
-                <p>{invoice.customer_title}</p>
-                <p>Phone: {invoice.customer_phone}</p>
-              </div>
-              <div>
-                <p><strong>PAYMENT INFO:</strong></p>
-                <p>Account No: {invoice.account_number}</p>
-                <p>Account Name: {invoice.account_name}</p>
-                <p>Bank Name: {invoice.bank_name}</p>
-              </div>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>NO</th>
-                  <th>DESCRIPTION</th>
-                  <th>QTY</th>
-                  <th>PRICE</th>
-                  <th>TOTAL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {invoice.items.map((item, index) => (
-                  <tr key={index}>
-                    <td>{index + 1}</td>
-                    <td>{item.description}</td>
-                    <td>{item.quantity}</td>
-                    <td>{item.price}</td>
-                    <td>{item.total}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="footer">
-              <p>Thank you for your business!</p>
-              <p>Phone: {invoice.company_phone}</p>
-              <p>Website: {invoice.company_website}</p>
-              <p>Address: {invoice.company_address}</p>
-              <p><strong>Terms & Conditions:</strong></p>
-              <p>{invoice.terms_and_conditions}</p>
-            </div>
-          </div>
+          <PrintableContent />
         </div>
       )}
     </div>
