@@ -189,9 +189,6 @@ const Invoices = () => {
               box-shadow: none;
               max-width: none;
             }
-            .print-hide {
-              display: none !important;
-            }
           }
         </style>
       </head>
@@ -263,14 +260,6 @@ const Invoices = () => {
     const canvas = await html2canvas(printRef.current, {
       scale: 2, // Increase scale for better quality
       useCORS: true, // Allow cross-origin images (e.g., company logo)
-      logging: true, // Enable logging for debugging
-      onclone: (clonedDoc) => {
-        // Hide unnecessary elements for PDF
-        const elementsToHide = clonedDoc.querySelectorAll(".print-hide");
-        elementsToHide.forEach((el) => {
-          el.style.display = "none";
-        });
-      },
     });
 
     // Convert the canvas to an image
