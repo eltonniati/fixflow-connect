@@ -189,6 +189,9 @@ const Invoices = () => {
               box-shadow: none;
               max-width: none;
             }
+            .print-hide {
+              display: none !important;
+            }
           }
         </style>
       </head>
@@ -260,6 +263,14 @@ const Invoices = () => {
     const canvas = await html2canvas(printRef.current, {
       scale: 2, // Increase scale for better quality
       useCORS: true, // Allow cross-origin images (e.g., company logo)
+      logging: true, // Enable logging for debugging
+      onclone: (clonedDoc) => {
+        // Hide unnecessary elements for PDF
+        const elementsToHide = clonedDoc.querySelectorAll(".print-hide");
+        elementsToHide.forEach((el) => {
+          el.style.display = "none";
+        });
+      },
     });
 
     // Convert the canvas to an image
@@ -386,7 +397,7 @@ const Invoices = () => {
                       <TableHead>Description</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="print:hidden"></TableHead>
+                      <TableHead className="print-hide"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -405,7 +416,7 @@ const Invoices = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
-                        <TableCell className="print:hidden">
+                        <TableCell className="print-hide">
                           <Button
                             variant="ghost"
                             size="icon"
