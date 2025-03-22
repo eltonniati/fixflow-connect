@@ -9,6 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Search, FileText, Filter, Printer, Download } from "lucide-react";
 import { useInvoices } from "@/hooks/use-invoices";
 import { Invoice } from "@/lib/types";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 // Helper function for currency formatting
 const formatCurrency = (amount: number) => {
@@ -246,193 +248,48 @@ const Invoices = () => {
     printWindow.document.close();
   };
 
-  // Function to handle save as PDF
+  // Function to handle save as PDF using jsPDF
   const handleSaveAsPDF = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
+    const doc = new jsPDF();
 
+    // Add company logo
     const companyLogo = localStorage.getItem('companyLogo') || '/default-logo.png';
-    
-    // HTML content for the print window (same as print but without auto-close)
-    const printContent = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Invoices Report</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f9f9f9;
-          }
-          .report-container {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            max-width: 1000px;
-            margin: 0 auto;
-          }
-          .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #e5e7eb;
-            margin-bottom: 20px;
-          }
-          .logo {
-            max-height: 60px;
-            max-width: 200px;
-          }
-          .title {
-            font-size: 24px;
-            font-weight: bold;
-            color: #111827;
-            margin: 0;
-          }
-          .date {
-            color: #6b7280;
-            font-size: 14px;
-            margin-top: 4px;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-          }
-          th, td {
-            padding: 12px 8px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-          }
-          th {
-            background-color: #f9fafb;
-            font-weight: 600;
-            color: #374151;
-          }
-          tr:hover {
-            background-color: #f9fafb;
-          }
-          .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 9999px;
-            font-size: 12px;
-            font-weight: 500;
-          }
-          .status-Draft {
-            background-color: #f3f4f6;
-            color: #374151;
-          }
-          .status-Sent {
-            background-color: #dbeafe;
-            color: #1e40af;
-          }
-          .status-Paid {
-            background-color: #d1fae5;
-            color: #065f46;
-          }
-          .status-Overdue {
-            background-color: #fee2e2;
-            color: #b91c1c;
-          }
-          .text-right {
-            text-align: right;
-          }
-          .footer {
-            margin-top: 30px;
-            text-align: center;
-            color: #6b7280;
-            font-size: 12px;
-          }
-          .save-instructions {
-            background-color: #f9fafb;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            padding: 12px;
-            margin: 24px auto;
-            max-width: 500px;
-            text-align: center;
-          }
-          .save-instructions h3 {
-            margin-top: 0;
-            color: #374151;
-          }
-          @media print {
-            body {
-              background: none;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            .report-container {
-              box-shadow: none;
-              max-width: none;
-            }
-            .save-instructions {
-              display: none;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="report-container">
-          <div class="header">
-            <div>
-              <h1 class="title">Invoices Report</h1>
-              <p class="date">Generated on ${format(new Date(), "MMMM d, yyyy")}</p>
-            </div>
-            <img src="${companyLogo}" alt="Company Logo" class="logo" onerror="this.style.display='none'"/>
-          </div>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>Invoice #</th>
-                <th>Date</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th class="text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredInvoices.map((invoice) => `
-                <tr>
-                  <td>${invoice.invoice_number}</td>
-                  <td>${format(new Date(invoice.issue_date), "MMM d, yyyy")}</td>
-                  <td>${invoice.bill_description}</td>
-                  <td><span class="status-badge status-${invoice.status}">${invoice.status}</span></td>
-                  <td class="text-right">${formatCurrency(invoice.total)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          
-          <div class="footer">
-            <p>This report was generated from your invoice management system.</p>
-          </div>
-          
-          <div class="save-instructions">
-            <h3>Save as PDF Instructions</h3>
-            <p>To save this report as a PDF:</p>
-            <ol style="text-align: left; display: inline-block;">
-              <li>Press Ctrl+P (Windows) or Cmd+P (Mac)</li>
-              <li>Select "Save as PDF" as the destination</li>
-              <li>Click "Save"</li>
-            </ol>
-            <p>This message won't appear in the saved PDF.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-    
-    printWindow.document.open();
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+    if (companyLogo) {
+      doc.addImage(companyLogo, 'PNG', 10, 10, 50, 20);
+    }
+
+    // Add title and date
+    doc.setFontSize(18);
+    doc.text('Invoices Report', 10, 40);
+    doc.setFontSize(12);
+    doc.text(`Generated on ${format(new Date(), "MMMM d, yyyy")}`, 10, 50);
+
+    // Define columns and rows for the table
+    const columns = [
+      { title: "Invoice #", dataKey: "invoice_number" },
+      { title: "Date", dataKey: "issue_date" },
+      { title: "Description", dataKey: "bill_description" },
+      { title: "Status", dataKey: "status" },
+      { title: "Amount", dataKey: "total" }
+    ];
+
+    const rows = filteredInvoices.map(invoice => ({
+      invoice_number: invoice.invoice_number,
+      issue_date: format(new Date(invoice.issue_date), "MMM d, yyyy"),
+      bill_description: invoice.bill_description,
+      status: invoice.status,
+      total: formatCurrency(invoice.total)
+    }));
+
+    // Add table to PDF
+    doc.autoTable({
+      startY: 60,
+      head: [columns.map(col => col.title)],
+      body: rows.map(row => columns.map(col => row[col.dataKey]))
+    });
+
+    // Save the PDF
+    doc.save('invoices-report.pdf');
   };
 
   return (
