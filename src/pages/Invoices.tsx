@@ -10,13 +10,13 @@ import { ArrowLeft, Search, FileText, Filter, Printer, Download } from "lucide-r
 import { useInvoices } from "@/hooks/use-invoices";
 import { Invoice } from "@/lib/types";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import html2canvas from "html2canvas";
 
 // Helper function for currency formatting
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-ZA", {
-    style: 'currency',
-    currency: 'ZAR',
+    style: "currency",
+    currency: "ZAR",
   }).format(amount);
 };
 
@@ -47,20 +47,20 @@ const Invoices = () => {
   useEffect(() => {
     // Apply filters whenever search query or status filter changes
     let filtered = [...invoices];
-    
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
-        invoice => 
-          invoice.invoice_number?.toLowerCase().includes(query) || 
+        (invoice) =>
+          invoice.invoice_number?.toLowerCase().includes(query) ||
           invoice.bill_description.toLowerCase().includes(query)
       );
     }
-    
+
     if (statusFilter) {
-      filtered = filtered.filter(invoice => invoice.status === statusFilter);
+      filtered = filtered.filter((invoice) => invoice.status === statusFilter);
     }
-    
+
     setFilteredInvoices(filtered);
   }, [searchQuery, statusFilter, invoices]);
 
@@ -78,11 +78,11 @@ const Invoices = () => {
 
   // Function to handle printing
   const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
+    const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    const companyLogo = localStorage.getItem('companyLogo') || '/default-logo.png';
-    
+    const companyLogo = localStorage.getItem("companyLogo") || "/default-logo.png";
+
     // HTML content for the print window
     const printContent = `
       <!DOCTYPE html>
@@ -213,7 +213,9 @@ const Invoices = () => {
               </tr>
             </thead>
             <tbody>
-              ${filteredInvoices.map((invoice) => `
+              ${filteredInvoices
+                .map(
+                  (invoice) => `
                 <tr>
                   <td>${invoice.invoice_number}</td>
                   <td>${format(new Date(invoice.issue_date), "MMM d, yyyy")}</td>
@@ -221,7 +223,9 @@ const Invoices = () => {
                   <td><span class="status-badge status-${invoice.status}">${invoice.status}</span></td>
                   <td class="text-right">${formatCurrency(invoice.total)}</td>
                 </tr>
-              `).join('')}
+              `
+                )
+                .join("")}
             </tbody>
           </table>
           
@@ -242,54 +246,35 @@ const Invoices = () => {
       </body>
       </html>
     `;
-    
+
     printWindow.document.open();
     printWindow.document.write(printContent);
     printWindow.document.close();
   };
 
-  // Function to handle save as PDF using jsPDF
-  const handleSaveAsPDF = () => {
-    const doc = new jsPDF();
+  // Function to handle save as PDF using html2canvas and jsPDF
+  const handleSaveAsPDF = async () => {
+    if (!printRef.current) return;
 
-    // Add company logo
-    const companyLogo = localStorage.getItem('companyLogo') || '/default-logo.png';
-    if (companyLogo) {
-      doc.addImage(companyLogo, 'PNG', 10, 10, 50, 20);
-    }
-
-    // Add title and date
-    doc.setFontSize(18);
-    doc.text('Invoices Report', 10, 40);
-    doc.setFontSize(12);
-    doc.text(`Generated on ${format(new Date(), "MMMM d, yyyy")}`, 10, 50);
-
-    // Define columns and rows for the table
-    const columns = [
-      { title: "Invoice #", dataKey: "invoice_number" },
-      { title: "Date", dataKey: "issue_date" },
-      { title: "Description", dataKey: "bill_description" },
-      { title: "Status", dataKey: "status" },
-      { title: "Amount", dataKey: "total" }
-    ];
-
-    const rows = filteredInvoices.map(invoice => ({
-      invoice_number: invoice.invoice_number,
-      issue_date: format(new Date(invoice.issue_date), "MMM d, yyyy"),
-      bill_description: invoice.bill_description,
-      status: invoice.status,
-      total: formatCurrency(invoice.total)
-    }));
-
-    // Add table to PDF
-    doc.autoTable({
-      startY: 60,
-      head: [columns.map(col => col.title)],
-      body: rows.map(row => columns.map(col => row[col.dataKey]))
+    // Capture the content as an image using html2canvas
+    const canvas = await html2canvas(printRef.current, {
+      scale: 2, // Increase scale for better quality
+      useCORS: true, // Allow cross-origin images (e.g., company logo)
     });
 
+    // Convert the canvas to an image
+    const imgData = canvas.toDataURL("image/png", 1.0);
+
+    // Create a new PDF
+    const pdf = new jsPDF("p", "mm", "a4");
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    // Add the image to the PDF
+    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+
     // Save the PDF
-    doc.save('invoices-report.pdf');
+    pdf.save("invoices-report.pdf");
   };
 
   return (
@@ -317,17 +302,17 @@ const Invoices = () => {
                 />
               </div>
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={handlePrint}
                   title="Print"
                 >
                   <Printer className="h-4 w-4" />
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="icon" 
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={handleSaveAsPDF}
                   title="Save as PDF"
                 >
@@ -406,7 +391,7 @@ const Invoices = () => {
                   </TableHeader>
                   <TableBody>
                     {filteredInvoices.map((invoice) => (
-                      <TableRow 
+                      <TableRow
                         key={invoice.id}
                         className="cursor-pointer"
                         onClick={() => navigate(`/invoices/${invoice.id}`)}
@@ -421,8 +406,8 @@ const Invoices = () => {
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
                         <TableCell className="print:hidden">
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="icon"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -441,27 +426,6 @@ const Invoices = () => {
           </div>
         </CardContent>
       </Card>
-
-      {/* Add print-specific styles */}
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .print-content, .print-content * {
-            visibility: visible;
-          }
-          .print-content {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          .print-hide {
-            display: none !important;
-          }
-        }
-      `}</style>
     </div>
   );
 };
