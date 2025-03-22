@@ -260,6 +260,7 @@ const Invoices = () => {
     const printContent = document.createElement("div");
     printContent.style.position = "absolute";
     printContent.style.left = "-9999px"; // Move off-screen
+    printContent.style.width = "800px"; // Fixed width for consistent rendering
     printContent.innerHTML = printRef.current.innerHTML;
 
     // Apply print styles to the hidden div
@@ -282,10 +283,23 @@ const Invoices = () => {
     // Append the hidden div to the document
     document.body.appendChild(printContent);
 
+    // Wait for images to load (if any)
+    const images = printContent.querySelectorAll("img");
+    const imagePromises = Array.from(images).map(
+      (img) =>
+        new Promise((resolve) => {
+          if (img.complete) resolve(true);
+          else img.onload = resolve;
+        })
+    );
+
+    await Promise.all(imagePromises);
+
     // Capture the hidden div as an image using html2canvas
     const canvas = await html2canvas(printContent, {
-      scale: 2, // Increase scale for better quality
+      scale: 3, // Higher scale for better quality on mobile
       useCORS: true, // Allow cross-origin images (e.g., company logo)
+      logging: true, // Enable logging for debugging
     });
 
     // Remove the hidden div from the document
