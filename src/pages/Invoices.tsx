@@ -256,11 +256,40 @@ const Invoices = () => {
   const handleSaveAsPDF = async () => {
     if (!printRef.current) return;
 
-    // Capture the content as an image using html2canvas
-    const canvas = await html2canvas(printRef.current, {
+    // Create a hidden div for the print preview content
+    const printContent = document.createElement("div");
+    printContent.style.position = "absolute";
+    printContent.style.left = "-9999px"; // Move off-screen
+    printContent.innerHTML = printRef.current.innerHTML;
+
+    // Apply print styles to the hidden div
+    const style = document.createElement("style");
+    style.innerHTML = `
+      @media print {
+        body {
+          background: none;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        .report-container {
+          box-shadow: none;
+          max-width: none;
+        }
+      }
+    `;
+    printContent.appendChild(style);
+
+    // Append the hidden div to the document
+    document.body.appendChild(printContent);
+
+    // Capture the hidden div as an image using html2canvas
+    const canvas = await html2canvas(printContent, {
       scale: 2, // Increase scale for better quality
       useCORS: true, // Allow cross-origin images (e.g., company logo)
     });
+
+    // Remove the hidden div from the document
+    document.body.removeChild(printContent);
 
     // Convert the canvas to an image
     const imgData = canvas.toDataURL("image/png", 1.0);
