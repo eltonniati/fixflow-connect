@@ -97,10 +97,16 @@ const handleSaveAsPDF = async (invoice: Invoice) => {
   printContent.style.position = "absolute";
   printContent.style.left = "-9999px"; // Move off-screen
   printContent.style.width = "800px"; // Fixed width for consistent rendering
+  // Add a CSS reset to isolate styles
+  printContent.style.all = "initial"; // Reset all inherited styles
+  printContent.style.fontFamily = "Arial, sans-serif"; // Reapply necessary styles
   printContent.innerHTML = invoiceHTML;
 
   // Append the hidden div to the document
   document.body.appendChild(printContent);
+
+  // Log the content of the div to ensure it’s clean
+  console.log("PDF Content:", printContent.innerHTML);
 
   // Wait for images to load (if any)
   const images = printContent.querySelectorAll("img");
@@ -119,7 +125,12 @@ const handleSaveAsPDF = async (invoice: Invoice) => {
     scale: 3, // Higher scale for better quality
     useCORS: true, // Allow cross-origin images (e.g., company logo)
     logging: true, // Enable logging for debugging
+    windowWidth: 800, // Match the width of the printContent div
+    windowHeight: printContent.scrollHeight, // Match the height of the content
   });
+
+  // Log the canvas dimensions to ensure it’s capturing the correct content
+  console.log("Canvas Dimensions:", canvas.width, canvas.height);
 
   // Remove the hidden div from the document
   document.body.removeChild(printContent);
