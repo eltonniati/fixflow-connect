@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -6,14 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Search, FileText, Filter } from "lucide-react";
+import { ArrowLeft, Search, FileText, Filter, Printer, Download } from "lucide-react";
 import { useInvoices } from "@/hooks/use-invoices";
 import { Invoice } from "@/lib/types";
-import pdfMake from "pdfmake/build/pdfmake";
-import pdfFonts from "pdfmake/build/vfs_fonts";
-
-// Set up pdfMake fonts
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 
 // Helper function for currency formatting
 const formatCurrency = (amount: number) => {
@@ -39,101 +36,56 @@ const getStatusColor = (status: string) => {
   }
 };
 
-// Function to handle save as PDF using pdfmake
-const handleSaveAsPDF = (invoice: Invoice) => {
-  const docDefinition = {
-    content: [
-      // Invoice Header
-      {
-        text: `Invoice #${invoice.invoice_number}`,
-        style: "header",
-      },
-      {
-        text: `Issued on ${format(new Date(invoice.issue_date), "MMM d, yyyy")}`,
-        style: "subheader",
-      },
-      // Bill To Section
-      {
-        text: "Bill To:",
-        style: "sectionHeader",
-      },
-      {
-        text: invoice.bill_to,
-        margin: [0, 5, 0, 15],
-      },
-      // Items Table
-      {
-        table: {
-          headerRows: 1,
-          widths: ["*", "auto", "auto", "auto"], // Flexible column widths
-          body: [
-            [
-              { text: "Description", style: "tableHeader", alignment: "left" },
-              { text: "Quantity", style: "tableHeader", alignment: "left" },
-              { text: "Unit Price", style: "tableHeader", alignment: "left" },
-              { text: "Amount", style: "tableHeader", alignment: "right" },
-            ],
-            ...invoice.items.map((item) => [
-              { text: item.description, alignment: "left" },
-              { text: item.quantity, alignment: "left" },
-              { text: formatCurrency(item.unit_price), alignment: "left" },
-              { text: formatCurrency(item.total), alignment: "right" },
-            ]),
-          ],
-        },
-        layout: "lightHorizontalLines", // Adds horizontal lines between rows
-      },
-      // Total
-      {
-        text: `Total: ${formatCurrency(invoice.total)}`,
-        style: "total",
-        alignment: "right",
-      },
-      // Footer Note
-      {
-        text: "This invoice was generated from your invoice management system.",
-        style: "footer",
-        alignment: "center",
-      },
-    ],
-    styles: {
-      header: {
-        fontSize: 24,
-        bold: true,
-        margin: [0, 0, 0, 10],
-      },
-      subheader: {
-        fontSize: 14,
-        margin: [0, 0, 0, 20],
-      },
-      sectionHeader: {
-        fontSize: 18,
-        bold: true,
-        margin: [0, 10, 0, 5],
-      },
-      tableHeader: {
-        bold: true,
-        fontSize: 13,
-        color: "black",
-        fillColor: "#f9fafb", // Light gray background for header row
-      },
-      total: {
-        fontSize: 16,
-        bold: true,
-        margin: [0, 10, 0, 20],
-      },
-      footer: {
-        fontSize: 12,
-        margin: [0, 30, 0, 0],
-      },
-    },
-    defaultStyle: {
-      font: "Roboto", // Default font
-    },
-  };
+// Function to generate a clean HTML structure for the invoice
+const generateInvoiceHTML = (invoice: Invoice) => {
+  const companyLogo = localStorage.getItem("companyLogo") || "/default-logo.png";
 
-  // Generate and download the PDF
-  pdfMake.createPdf(docDefinition).download(`invoice-${invoice.invoice_number}.pdf`);
+  return `
+    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
+      <div style="text-align: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 20px;">
+        <h1 style="font-size: 24px; font-weight: bold; color: #111827; margin: 0;">Invoice #${invoice.invoice_number}</h1>
+        <p style="color: #6b7280; font-size: 14px; margin-top: 4px;">Issued on ${format(new Date(invoice.issue_date), "MMM d, yyyy")}</p>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 18px; font-weight: bold; color: #111827; margin-bottom: 10px;">Bill To:</h2>
+        <p style="color: #374151; margin: 0;">${invoice.bill_to}</p>
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <thead>
+          <tr style="background-color: #f9fafb;">
+            <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151;">Description</th>
+            <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151;">Quantity</th>
+            <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151;">Unit Price</th>
+            <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #374151;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${invoice.items
+            .map(
+              (item) => `
+            <tr>
+              <td style="padding: 12px 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">${item.description}</td>
+              <td style="padding: 12px 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">${item.quantity}</td>
+              <td style="padding: 12px 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.unit_price)}</td>
+              <td style="padding: 12px 8px; text-align: right; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.total)}</td>
+            </tr>
+          `
+            )
+            .join("")}
+        </tbody>
+      </table>
+
+      <div style="text-align: right;">
+        <p style="font-size: 16px; font-weight: bold; color: #111827;">Total: ${formatCurrency(invoice.total)}</p>
+      </div>
+
+      <div style="margin-top: 30px; text-align: center; color: #6b7280; font-size: 12px;">
+        <p>This invoice was generated from your invoice management system.</p>
+      </div>
+    </div>
+  `;
 };
 
 const Invoices = () => {
@@ -143,8 +95,8 @@ const Invoices = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
 
-  // Filter invoices based on search query and status
   useEffect(() => {
+    // Apply filters whenever search query or status filter changes
     let filtered = [...invoices];
 
     if (searchQuery) {
@@ -173,6 +125,57 @@ const Invoices = () => {
     } else {
       setStatusFilter(status);
     }
+  };
+
+  // Function to handle save as PDF
+  const handleSaveAsPDF = async (invoice: Invoice) => {
+    const invoiceHTML = generateInvoiceHTML(invoice);
+
+    // Create a hidden div for the invoice content
+    const printContent = document.createElement("div");
+    printContent.style.position = "absolute";
+    printContent.style.left = "-9999px"; // Move off-screen
+    printContent.style.width = "800px"; // Fixed width for consistent rendering
+    printContent.innerHTML = invoiceHTML;
+
+    // Append the hidden div to the document
+    document.body.appendChild(printContent);
+
+    // Wait for images to load (if any)
+    const images = printContent.querySelectorAll("img");
+    const imagePromises = Array.from(images).map(
+      (img) =>
+        new Promise((resolve) => {
+          if (img.complete) resolve(true);
+          else img.onload = resolve;
+        })
+    );
+
+    await Promise.all(imagePromises);
+
+    // Capture the hidden div as an image using html2canvas
+    const canvas = await html2canvas(printContent, {
+      scale: 3, // Higher scale for better quality
+      useCORS: true, // Allow cross-origin images (e.g., company logo)
+      logging: true, // Enable logging for debugging
+    });
+
+    // Remove the hidden div from the document
+    document.body.removeChild(printContent);
+
+    // Convert the canvas to an image
+    const imgData = canvas.toDataURL("image/png", 1.0);
+
+    // Create a new PDF
+    const pdf = new jsPDF("p", "mm", "a4");
+    const imgWidth = 210; // A4 width in mm
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    // Add the image to the PDF
+    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+
+    // Save the PDF
+    pdf.save(`invoice-${invoice.invoice_number}.pdf`);
   };
 
   return (
