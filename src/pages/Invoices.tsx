@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Search, FileText, Filter, Download } from "lucide-react";
+import { ArrowLeft, Search, FileText, Filter } from "lucide-react";
 import { useInvoices } from "@/hooks/use-invoices";
 import { Invoice } from "@/lib/types";
 import jsPDF from "jspdf";
@@ -88,6 +88,57 @@ const generateInvoiceHTML = (invoice: Invoice) => {
   `;
 };
 
+// Function to handle save as PDF
+const handleSaveAsPDF = async (invoice: Invoice) => {
+  const invoiceHTML = generateInvoiceHTML(invoice);
+
+  // Create a hidden div for the invoice content
+  const printContent = document.createElement("div");
+  printContent.style.position = "absolute";
+  printContent.style.left = "-9999px"; // Move off-screen
+  printContent.style.width = "800px"; // Fixed width for consistent rendering
+  printContent.innerHTML = invoiceHTML;
+
+  // Append the hidden div to the document
+  document.body.appendChild(printContent);
+
+  // Wait for images to load (if any)
+  const images = printContent.querySelectorAll("img");
+  const imagePromises = Array.from(images).map(
+    (img) =>
+      new Promise((resolve) => {
+        if (img.complete) resolve(true);
+        else img.onload = resolve;
+      })
+  );
+
+  await Promise.all(imagePromises);
+
+  // Capture the hidden div as an image using html2canvas
+  const canvas = await html2canvas(printContent, {
+    scale: 3, // Higher scale for better quality
+    useCORS: true, // Allow cross-origin images (e.g., company logo)
+    logging: true, // Enable logging for debugging
+  });
+
+  // Remove the hidden div from the document
+  document.body.removeChild(printContent);
+
+  // Convert the canvas to an image
+  const imgData = canvas.toDataURL("image/png", 1.0);
+
+  // Create a new PDF
+  const pdf = new jsPDF("p", "mm", "a4");
+  const imgWidth = 210; // A4 width in mm
+  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+  // Add the image to the PDF
+  pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
+
+  // Save the PDF
+  pdf.save(`invoice-${invoice.invoice_number}.pdf`);
+};
+
 const Invoices = () => {
   const navigate = useNavigate();
   const { invoices, loading } = useInvoices();
@@ -125,57 +176,6 @@ const Invoices = () => {
     } else {
       setStatusFilter(status);
     }
-  };
-
-  // Function to handle save as PDF
-  const handleSaveAsPDF = async (invoice: Invoice) => {
-    const invoiceHTML = generateInvoiceHTML(invoice);
-
-    // Create a hidden div for the invoice content
-    const printContent = document.createElement("div");
-    printContent.style.position = "absolute";
-    printContent.style.left = "-9999px"; // Move off-screen
-    printContent.style.width = "800px"; // Fixed width for consistent rendering
-    printContent.innerHTML = invoiceHTML;
-
-    // Append the hidden div to the document
-    document.body.appendChild(printContent);
-
-    // Wait for images to load (if any)
-    const images = printContent.querySelectorAll("img");
-    const imagePromises = Array.from(images).map(
-      (img) =>
-        new Promise((resolve) => {
-          if (img.complete) resolve(true);
-          else img.onload = resolve;
-        })
-    );
-
-    await Promise.all(imagePromises);
-
-    // Capture the hidden div as an image using html2canvas
-    const canvas = await html2canvas(printContent, {
-      scale: 3, // Higher scale for better quality
-      useCORS: true, // Allow cross-origin images (e.g., company logo)
-      logging: true, // Enable logging for debugging
-    });
-
-    // Remove the hidden div from the document
-    document.body.removeChild(printContent);
-
-    // Convert the canvas to an image
-    const imgData = canvas.toDataURL("image/png", 1.0);
-
-    // Create a new PDF
-    const pdf = new jsPDF("p", "mm", "a4");
-    const imgWidth = 210; // A4 width in mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    // Add the image to the PDF
-    pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-
-    // Save the PDF
-    pdf.save(`invoice-${invoice.invoice_number}.pdf`);
   };
 
   return (
@@ -268,12 +268,15 @@ const Invoices = () => {
                     <TableHead>Description</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredInvoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
+                    <TableRow
+                      key={invoice.id}
+                      className="cursor-pointer"
+                      onClick={() => handleSaveAsPDF(invoice)} // Generate PDF when clicking on a row
+                    >
                       <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
                       <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
@@ -283,16 +286,6 @@ const Invoices = () => {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleSaveAsPDF(invoice)}
-                          title="Download PDF"
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
