@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Search, FileText, Filter, Printer, Download } from "lucide-react";
+import { ArrowLeft, Search, FileText, Filter, Download } from "lucide-react";
 import { useInvoices } from "@/hooks/use-invoices";
 import { Invoice } from "@/lib/types";
 import jsPDF from "jspdf";
@@ -36,171 +36,12 @@ const getStatusColor = (status: string) => {
   }
 };
 
-// Function to generate simplified HTML for PDF
-const generatePDFContent = (invoices: Invoice[]) => {
-  const companyLogo = localStorage.getItem("companyLogo") || "/default-logo.png";
-
-  return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Invoices Report</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 0;
-          padding: 20px;
-          background-color: #f9f9f9;
-        }
-        .report-container {
-          background-color: white;
-          border-radius: 8px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          padding: 20px;
-          max-width: 1000px;
-          margin: 0 auto;
-        }
-        .header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding-bottom: 20px;
-          border-bottom: 1px solid #e5e7eb;
-          margin-bottom: 20px;
-        }
-        .logo {
-          max-height: 60px;
-          max-width: 200px;
-        }
-        .title {
-          font-size: 24px;
-          font-weight: bold;
-          color: #111827;
-          margin: 0;
-        }
-        .date {
-          color: #6b7280;
-          font-size: 14px;
-          margin-top: 4px;
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          margin-top: 20px;
-        }
-        th, td {
-          padding: 12px 8px;
-          text-align: left;
-          border-bottom: 1px solid #e5e7eb;
-        }
-        th {
-          background-color: #f9fafb;
-          font-weight: 600;
-          color: #374151;
-        }
-        tr:hover {
-          background-color: #f9fafb;
-        }
-        .status-badge {
-          display: inline-block;
-          padding: 4px 8px;
-          border-radius: 9999px;
-          font-size: 12px;
-          font-weight: 500;
-        }
-        .status-Draft {
-          background-color: #f3f4f6;
-          color: #374151;
-        }
-        .status-Sent {
-          background-color: #dbeafe;
-          color: #1e40af;
-        }
-        .status-Paid {
-          background-color: #d1fae5;
-          color: #065f46;
-        }
-        .status-Overdue {
-          background-color: #fee2e2;
-          color: #b91c1c;
-        }
-        .text-right {
-          text-align: right;
-        }
-        .footer {
-          margin-top: 30px;
-          text-align: center;
-          color: #6b7280;
-          font-size: 12px;
-        }
-        @media print {
-          body {
-            background: none;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          .report-container {
-            box-shadow: none;
-            max-width: none;
-          }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="report-container">
-        <div class="header">
-          <div>
-            <h1 class="title">Invoices Report</h1>
-            <p class="date">Generated on ${format(new Date(), "MMMM d, yyyy")}</p>
-          </div>
-          <img src="${companyLogo}" alt="Company Logo" class="logo" onerror="this.style.display='none'"/>
-        </div>
-        
-        <table>
-          <thead>
-            <tr>
-              <th>Invoice #</th>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Status</th>
-              <th class="text-right">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${invoices
-              .map(
-                (invoice) => `
-              <tr>
-                <td>${invoice.invoice_number}</td>
-                <td>${format(new Date(invoice.issue_date), "MMM d, yyyy")}</td>
-                <td>${invoice.bill_description}</td>
-                <td><span class="status-badge status-${invoice.status}">${invoice.status}</span></td>
-                <td class="text-right">${formatCurrency(invoice.total)}</td>
-              </tr>
-            `
-              )
-              .join("")}
-          </tbody>
-        </table>
-        
-        <div class="footer">
-          <p>This report was generated from your invoice management system.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-  `;
-};
-
 const Invoices = () => {
   const navigate = useNavigate();
   const { invoices, loading } = useInvoices();
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
-  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Apply filters whenever search query or status filter changes
@@ -234,25 +75,71 @@ const Invoices = () => {
     }
   };
 
-  // Function to handle printing
-  const handlePrint = () => {
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) return;
+  // Function to generate a clean HTML structure for the invoice
+  const generateInvoiceHTML = (invoice: Invoice) => {
+    const companyLogo = localStorage.getItem("companyLogo") || "/default-logo.png";
 
-    const printContent = generatePDFContent(filteredInvoices);
+    return `
+      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 20px;">
+          <div>
+            <h1 style="font-size: 24px; font-weight: bold; color: #111827; margin: 0;">Invoice #${invoice.invoice_number}</h1>
+            <p style="color: #6b7280; font-size: 14px; margin-top: 4px;">Issued on ${format(new Date(invoice.issue_date), "MMM d, yyyy")}</p>
+          </div>
+          <img src="${companyLogo}" alt="Company Logo" style="max-height: 60px; max-width: 200px;" onerror="this.style.display='none'"/>
+        </div>
 
-    printWindow.document.open();
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+        <div style="margin-bottom: 20px;">
+          <h2 style="font-size: 18px; font-weight: bold; color: #111827; margin-bottom: 10px;">Bill To:</h2>
+          <p style="color: #374151; margin: 0;">${invoice.bill_to}</p>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <thead>
+            <tr style="background-color: #f9fafb;">
+              <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151;">Description</th>
+              <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151;">Quantity</th>
+              <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151;">Unit Price</th>
+              <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #374151;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${invoice.items
+              .map(
+                (item) => `
+              <tr>
+                <td style="padding: 12px 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">${item.description}</td>
+                <td style="padding: 12px 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">${item.quantity}</td>
+                <td style="padding: 12px 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.unit_price)}</td>
+                <td style="padding: 12px 8px; text-align: right; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.total)}</td>
+              </tr>
+            `
+              )
+              .join("")}
+          </tbody>
+        </table>
+
+        <div style="text-align: right;">
+          <p style="font-size: 16px; font-weight: bold; color: #111827;">Total: ${formatCurrency(invoice.total)}</p>
+        </div>
+
+        <div style="margin-top: 30px; text-align: center; color: #6b7280; font-size: 12px;">
+          <p>This invoice was generated from your invoice management system.</p>
+        </div>
+      </div>
+    `;
   };
 
   // Function to handle save as PDF
-  const handleSaveAsPDF = async () => {
+  const handleSaveAsPDF = async (invoice: Invoice) => {
+    const invoiceHTML = generateInvoiceHTML(invoice);
+
+    // Create a hidden div for the invoice content
     const printContent = document.createElement("div");
     printContent.style.position = "absolute";
     printContent.style.left = "-9999px"; // Move off-screen
     printContent.style.width = "800px"; // Fixed width for consistent rendering
-    printContent.innerHTML = generatePDFContent(filteredInvoices);
+    printContent.innerHTML = invoiceHTML;
 
     // Append the hidden div to the document
     document.body.appendChild(printContent);
@@ -271,7 +158,7 @@ const Invoices = () => {
 
     // Capture the hidden div as an image using html2canvas
     const canvas = await html2canvas(printContent, {
-      scale: 3, // Higher scale for better quality on mobile
+      scale: 3, // Higher scale for better quality
       useCORS: true, // Allow cross-origin images (e.g., company logo)
       logging: true, // Enable logging for debugging
     });
@@ -291,7 +178,7 @@ const Invoices = () => {
     pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
 
     // Save the PDF
-    pdf.save("invoices-report.pdf");
+    pdf.save(`invoice-${invoice.invoice_number}.pdf`);
   };
 
   return (
@@ -317,24 +204,6 @@ const Invoices = () => {
                   value={searchQuery}
                   onChange={handleSearch}
                 />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handlePrint}
-                  title="Print"
-                >
-                  <Printer className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleSaveAsPDF}
-                  title="Save as PDF"
-                >
-                  <Download className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           </div>
@@ -378,56 +247,61 @@ const Invoices = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div ref={printRef}>
-            {loading ? (
-              <div className="flex justify-center items-center h-32">
-                <p className="text-muted-foreground">Loading invoices...</p>
-              </div>
-            ) : filteredInvoices.length === 0 ? (
-              <div className="text-center py-6">
-                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium">No invoices found</h3>
-                <p className="text-muted-foreground mt-1">
-                  {searchQuery || statusFilter
-                    ? "Try a different search or filter"
-                    : "Create your first invoice from a job card"}
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
+          {loading ? (
+            <div className="flex justify-center items-center h-32">
+              <p className="text-muted-foreground">Loading invoices...</p>
+            </div>
+          ) : filteredInvoices.length === 0 ? (
+            <div className="text-center py-6">
+              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium">No invoices found</h3>
+              <p className="text-muted-foreground mt-1">
+                {searchQuery || statusFilter
+                  ? "Try a different search or filter"
+                  : "Create your first invoice from a job card"}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice #</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredInvoices.map((invoice) => (
+                    <TableRow key={invoice.id}>
+                      <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                      <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(invoice.status)}>
+                          {invoice.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleSaveAsPDF(invoice)}
+                          title="Download PDF"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInvoices.map((invoice) => (
-                      <TableRow
-                        key={invoice.id}
-                        className="cursor-pointer"
-                        onClick={() => navigate(`/invoices/${invoice.id}`)}
-                      >
-                        <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                        <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(invoice.status)}>
-                            {invoice.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
