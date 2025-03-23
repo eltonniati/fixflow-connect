@@ -180,7 +180,10 @@ const InvoicePage = () => {
                 <Download className="mr-2 h-4 w-4" />
                 Download PDF
               </Button>
-              <Button variant="outline">
+              <Button 
+                variant="outline" 
+                onClick={() => window.print()}
+              >
                 <Printer className="mr-2 h-4 w-4" />
                 Print
               </Button>
