@@ -36,6 +36,164 @@ const getStatusColor = (status: string) => {
   }
 };
 
+// Function to generate simplified HTML for PDF
+const generatePDFContent = (invoices: Invoice[]) => {
+  const companyLogo = localStorage.getItem("companyLogo") || "/default-logo.png";
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Invoices Report</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 0;
+          padding: 20px;
+          background-color: #f9f9f9;
+        }
+        .report-container {
+          background-color: white;
+          border-radius: 8px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          padding: 20px;
+          max-width: 1000px;
+          margin: 0 auto;
+        }
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding-bottom: 20px;
+          border-bottom: 1px solid #e5e7eb;
+          margin-bottom: 20px;
+        }
+        .logo {
+          max-height: 60px;
+          max-width: 200px;
+        }
+        .title {
+          font-size: 24px;
+          font-weight: bold;
+          color: #111827;
+          margin: 0;
+        }
+        .date {
+          color: #6b7280;
+          font-size: 14px;
+          margin-top: 4px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 20px;
+        }
+        th, td {
+          padding: 12px 8px;
+          text-align: left;
+          border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+          background-color: #f9fafb;
+          font-weight: 600;
+          color: #374151;
+        }
+        tr:hover {
+          background-color: #f9fafb;
+        }
+        .status-badge {
+          display: inline-block;
+          padding: 4px 8px;
+          border-radius: 9999px;
+          font-size: 12px;
+          font-weight: 500;
+        }
+        .status-Draft {
+          background-color: #f3f4f6;
+          color: #374151;
+        }
+        .status-Sent {
+          background-color: #dbeafe;
+          color: #1e40af;
+        }
+        .status-Paid {
+          background-color: #d1fae5;
+          color: #065f46;
+        }
+        .status-Overdue {
+          background-color: #fee2e2;
+          color: #b91c1c;
+        }
+        .text-right {
+          text-align: right;
+        }
+        .footer {
+          margin-top: 30px;
+          text-align: center;
+          color: #6b7280;
+          font-size: 12px;
+        }
+        @media print {
+          body {
+            background: none;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .report-container {
+            box-shadow: none;
+            max-width: none;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="report-container">
+        <div class="header">
+          <div>
+            <h1 class="title">Invoices Report</h1>
+            <p class="date">Generated on ${format(new Date(), "MMMM d, yyyy")}</p>
+          </div>
+          <img src="${companyLogo}" alt="Company Logo" class="logo" onerror="this.style.display='none'"/>
+        </div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th>Invoice #</th>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Status</th>
+              <th class="text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${invoices
+              .map(
+                (invoice) => `
+              <tr>
+                <td>${invoice.invoice_number}</td>
+                <td>${format(new Date(invoice.issue_date), "MMM d, yyyy")}</td>
+                <td>${invoice.bill_description}</td>
+                <td><span class="status-badge status-${invoice.status}">${invoice.status}</span></td>
+                <td class="text-right">${formatCurrency(invoice.total)}</td>
+              </tr>
+            `
+              )
+              .join("")}
+          </tbody>
+        </table>
+        
+        <div class="footer">
+          <p>This report was generated from your invoice management system.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
 const Invoices = () => {
   const navigate = useNavigate();
   const { invoices, loading } = useInvoices();
@@ -81,204 +239,20 @@ const Invoices = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    const companyLogo = localStorage.getItem("companyLogo") || "/default-logo.png";
-
-    // HTML content for the print window
-    const printContent = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Invoices Report</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f9f9f9;
-          }
-          .report-container {
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            max-width: 1000px;
-            margin: 0 auto;
-          }
-          .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #e5e7eb;
-            margin-bottom: 20px;
-          }
-          .logo {
-            max-height: 60px;
-            max-width: 200px;
-          }
-          .title {
-            font-size: 24px;
-            font-weight: bold;
-            color: #111827;
-            margin: 0;
-          }
-          .date {
-            color: #6b7280;
-            font-size: 14px;
-            margin-top: 4px;
-          }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-          }
-          th, td {
-            padding: 12px 8px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-          }
-          th {
-            background-color: #f9fafb;
-            font-weight: 600;
-            color: #374151;
-          }
-          tr:hover {
-            background-color: #f9fafb;
-          }
-          .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 9999px;
-            font-size: 12px;
-            font-weight: 500;
-          }
-          .status-Draft {
-            background-color: #f3f4f6;
-            color: #374151;
-          }
-          .status-Sent {
-            background-color: #dbeafe;
-            color: #1e40af;
-          }
-          .status-Paid {
-            background-color: #d1fae5;
-            color: #065f46;
-          }
-          .status-Overdue {
-            background-color: #fee2e2;
-            color: #b91c1c;
-          }
-          .text-right {
-            text-align: right;
-          }
-          .footer {
-            margin-top: 30px;
-            text-align: center;
-            color: #6b7280;
-            font-size: 12px;
-          }
-          @media print {
-            body {
-              background: none;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            .report-container {
-              box-shadow: none;
-              max-width: none;
-            }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="report-container">
-          <div class="header">
-            <div>
-              <h1 class="title">Invoices Report</h1>
-              <p class="date">Generated on ${format(new Date(), "MMMM d, yyyy")}</p>
-            </div>
-            <img src="${companyLogo}" alt="Company Logo" class="logo" onerror="this.style.display='none'"/>
-          </div>
-          
-          <table>
-            <thead>
-              <tr>
-                <th>Invoice #</th>
-                <th>Date</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th class="text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${filteredInvoices
-                .map(
-                  (invoice) => `
-                <tr>
-                  <td>${invoice.invoice_number}</td>
-                  <td>${format(new Date(invoice.issue_date), "MMM d, yyyy")}</td>
-                  <td>${invoice.bill_description}</td>
-                  <td><span class="status-badge status-${invoice.status}">${invoice.status}</span></td>
-                  <td class="text-right">${formatCurrency(invoice.total)}</td>
-                </tr>
-              `
-                )
-                .join("")}
-            </tbody>
-          </table>
-          
-          <div class="footer">
-            <p>This report was generated from your invoice management system.</p>
-          </div>
-        </div>
-        <script>
-          window.onload = function() {
-            setTimeout(function() {
-              window.print();
-              setTimeout(function() {
-                window.close();
-              }, 100);
-            }, 500);
-          }
-        </script>
-      </body>
-      </html>
-    `;
+    const printContent = generatePDFContent(filteredInvoices);
 
     printWindow.document.open();
     printWindow.document.write(printContent);
     printWindow.document.close();
   };
 
-  // Function to handle save as PDF using html2canvas and jsPDF
+  // Function to handle save as PDF
   const handleSaveAsPDF = async () => {
-    if (!printRef.current) return;
-
-    // Create a hidden div for the print preview content
     const printContent = document.createElement("div");
     printContent.style.position = "absolute";
     printContent.style.left = "-9999px"; // Move off-screen
     printContent.style.width = "800px"; // Fixed width for consistent rendering
-    printContent.innerHTML = printRef.current.innerHTML;
-
-    // Apply print styles to the hidden div
-    const style = document.createElement("style");
-    style.innerHTML = `
-      @media print {
-        body {
-          background: none;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-        .report-container {
-          box-shadow: none;
-          max-width: none;
-        }
-      }
-    `;
-    printContent.appendChild(style);
+    printContent.innerHTML = generatePDFContent(filteredInvoices);
 
     // Append the hidden div to the document
     document.body.appendChild(printContent);
@@ -429,7 +403,6 @@ const Invoices = () => {
                       <TableHead>Description</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="print-hide"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -448,18 +421,6 @@ const Invoices = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
-                        <TableCell className="print-hide">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/invoices/${invoice.id}`);
-                            }}
-                          >
-                            <FileText className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
