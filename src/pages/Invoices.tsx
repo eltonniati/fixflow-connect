@@ -36,8 +36,8 @@ const getStatusColor = (status: string) => {
   }
 };
 
-// Function to generate simplified HTML for printing or PDF
-const generatePrintContent = (invoices: Invoice[]) => {
+// Function to generate simplified HTML for PDF
+const generatePDFContent = (invoices: Invoice[]) => {
   const companyLogo = localStorage.getItem("companyLogo") || "/default-logo.png";
 
   return `
@@ -200,6 +200,7 @@ const Invoices = () => {
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Apply filters whenever search query or status filter changes
@@ -238,7 +239,7 @@ const Invoices = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    const printContent = generatePrintContent(filteredInvoices);
+    const printContent = generatePDFContent(filteredInvoices);
 
     printWindow.document.open();
     printWindow.document.write(printContent);
@@ -251,7 +252,7 @@ const Invoices = () => {
     printContent.style.position = "absolute";
     printContent.style.left = "-9999px"; // Move off-screen
     printContent.style.width = "800px"; // Fixed width for consistent rendering
-    printContent.innerHTML = generatePrintContent(filteredInvoices);
+    printContent.innerHTML = generatePDFContent(filteredInvoices);
 
     // Append the hidden div to the document
     document.body.appendChild(printContent);
@@ -377,54 +378,56 @@ const Invoices = () => {
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex justify-center items-center h-32">
-              <p className="text-muted-foreground">Loading invoices...</p>
-            </div>
-          ) : filteredInvoices.length === 0 ? (
-            <div className="text-center py-6">
-              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium">No invoices found</h3>
-              <p className="text-muted-foreground mt-1">
-                {searchQuery || statusFilter
-                  ? "Try a different search or filter"
-                  : "Create your first invoice from a job card"}
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredInvoices.map((invoice) => (
-                    <TableRow
-                      key={invoice.id}
-                      className="cursor-pointer"
-                      onClick={() => navigate(`/invoices/${invoice.id}`)}
-                    >
-                      <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                      <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(invoice.status)}>
-                          {invoice.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
+          <div ref={printRef}>
+            {loading ? (
+              <div className="flex justify-center items-center h-32">
+                <p className="text-muted-foreground">Loading invoices...</p>
+              </div>
+            ) : filteredInvoices.length === 0 ? (
+              <div className="text-center py-6">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium">No invoices found</h3>
+                <p className="text-muted-foreground mt-1">
+                  {searchQuery || statusFilter
+                    ? "Try a different search or filter"
+                    : "Create your first invoice from a job card"}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                  </TableHeader>
+                  <TableBody>
+                    {filteredInvoices.map((invoice) => (
+                      <TableRow
+                        key={invoice.id}
+                        className="cursor-pointer"
+                        onClick={() => navigate(`/invoices/${invoice.id}`)}
+                      >
+                        <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                        <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(invoice.status)}>
+                            {invoice.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
