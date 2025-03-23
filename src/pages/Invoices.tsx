@@ -36,6 +36,58 @@ const getStatusColor = (status: string) => {
   }
 };
 
+// Function to generate a clean HTML structure for the invoice
+const generateInvoiceHTML = (invoice: Invoice) => {
+  const companyLogo = localStorage.getItem("companyLogo") || "/default-logo.png";
+
+  return `
+    <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
+      <div style="text-align: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 20px;">
+        <h1 style="font-size: 24px; font-weight: bold; color: #111827; margin: 0;">Invoice #${invoice.invoice_number}</h1>
+        <p style="color: #6b7280; font-size: 14px; margin-top: 4px;">Issued on ${format(new Date(invoice.issue_date), "MMM d, yyyy")}</p>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 18px; font-weight: bold; color: #111827; margin-bottom: 10px;">Bill To:</h2>
+        <p style="color: #374151; margin: 0;">${invoice.bill_to}</p>
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+        <thead>
+          <tr style="background-color: #f9fafb;">
+            <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151;">Description</th>
+            <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151;">Quantity</th>
+            <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151;">Unit Price</th>
+            <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #374151;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${invoice.items
+            .map(
+              (item) => `
+            <tr>
+              <td style="padding: 12px 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">${item.description}</td>
+              <td style="padding: 12px 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">${item.quantity}</td>
+              <td style="padding: 12px 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.unit_price)}</td>
+              <td style="padding: 12px 8px; text-align: right; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.total)}</td>
+            </tr>
+          `
+            )
+            .join("")}
+        </tbody>
+      </table>
+
+      <div style="text-align: right;">
+        <p style="font-size: 16px; font-weight: bold; color: #111827;">Total: ${formatCurrency(invoice.total)}</p>
+      </div>
+
+      <div style="margin-top: 30px; text-align: center; color: #6b7280; font-size: 12px;">
+        <p>This invoice was generated from your invoice management system.</p>
+      </div>
+    </div>
+  `;
+};
+
 const Invoices = () => {
   const navigate = useNavigate();
   const { invoices, loading } = useInvoices();
@@ -73,61 +125,6 @@ const Invoices = () => {
     } else {
       setStatusFilter(status);
     }
-  };
-
-  // Function to generate a clean HTML structure for the invoice
-  const generateInvoiceHTML = (invoice: Invoice) => {
-    const companyLogo = localStorage.getItem("companyLogo") || "/default-logo.png";
-
-    return `
-      <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 20px;">
-          <div>
-            <h1 style="font-size: 24px; font-weight: bold; color: #111827; margin: 0;">Invoice #${invoice.invoice_number}</h1>
-            <p style="color: #6b7280; font-size: 14px; margin-top: 4px;">Issued on ${format(new Date(invoice.issue_date), "MMM d, yyyy")}</p>
-          </div>
-          <img src="${companyLogo}" alt="Company Logo" style="max-height: 60px; max-width: 200px;" onerror="this.style.display='none'"/>
-        </div>
-
-        <div style="margin-bottom: 20px;">
-          <h2 style="font-size: 18px; font-weight: bold; color: #111827; margin-bottom: 10px;">Bill To:</h2>
-          <p style="color: #374151; margin: 0;">${invoice.bill_to}</p>
-        </div>
-
-        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-          <thead>
-            <tr style="background-color: #f9fafb;">
-              <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151;">Description</th>
-              <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151;">Quantity</th>
-              <th style="padding: 12px 8px; text-align: left; font-weight: 600; color: #374151;">Unit Price</th>
-              <th style="padding: 12px 8px; text-align: right; font-weight: 600; color: #374151;">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${invoice.items
-              .map(
-                (item) => `
-              <tr>
-                <td style="padding: 12px 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">${item.description}</td>
-                <td style="padding: 12px 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">${item.quantity}</td>
-                <td style="padding: 12px 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.unit_price)}</td>
-                <td style="padding: 12px 8px; text-align: right; border-bottom: 1px solid #e5e7eb;">${formatCurrency(item.total)}</td>
-              </tr>
-            `
-              )
-              .join("")}
-          </tbody>
-        </table>
-
-        <div style="text-align: right;">
-          <p style="font-size: 16px; font-weight: bold; color: #111827;">Total: ${formatCurrency(invoice.total)}</p>
-        </div>
-
-        <div style="margin-top: 30px; text-align: center; color: #6b7280; font-size: 12px;">
-          <p>This invoice was generated from your invoice management system.</p>
-        </div>
-      </div>
-    `;
   };
 
   // Function to handle save as PDF
