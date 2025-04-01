@@ -1,22 +1,20 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Search, FileText, Filter, Printer, Download } from "lucide-react";
+import { ArrowLeft, Search, FileText, Filter, Printer } from "lucide-react";
 import { useInvoices } from "@/hooks/use-invoices";
 import { Invoice } from "@/lib/types";
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 
 // Helper function for currency formatting
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("en-ZA", {
-    style: "currency",
-    currency: "ZAR",
+    style: 'currency',
+    currency: 'ZAR',
   }).format(amount);
 };
 
@@ -36,199 +34,230 @@ const getStatusColor = (status: string) => {
   }
 };
 
-// PDF Component
-const InvoicePDF = ({ invoice }: { invoice: Invoice }) => {
-  return (
-    <div className="p-6 max-w-3xl mx-auto font-sans">
-      {/* Header */}
-      <div className="text-center border-b pb-4 mb-6">
-        <img 
-          src="/logo.png" 
-          className="h-16 mx-auto mb-4"
-          alt="Company Logo"
-        />
-        <h1 className="text-2xl font-bold">Invoice #{invoice.invoice_number}</h1>
-        <div className="flex justify-center gap-4 mt-2 text-sm">
-          <p>Issued: {format(new Date(invoice.issue_date), "MMM d, yyyy")}</p>
-          <p>Due: {format(new Date(invoice.due_date), "MMM d, yyyy")}</p>
-        </div>
-      </div>
-
-      {/* Bill To */}
-      <div className="mb-8 grid grid-cols-2">
-        <div>
-          <h2 className="text-lg font-semibold mb-2">Bill To:</h2>
-          <p className="text-gray-700">{invoice.bill_to}</p>
-        </div>
-        <div className="text-right">
-          <div className="inline-block p-3 bg-gray-100 rounded-lg">
-            <p className="font-semibold">Status:</p>
-            <p className="text-blue-600">{invoice.status}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Items Table */}
-      <table className="w-full mb-8">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="text-left p-3">Description</th>
-            <th className="text-left p-3">Qty</th>
-            <th className="text-left p-3">Unit Price</th>
-            <th className="text-right p-3">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {invoice.items.map((item, index) => (
-            <tr key={index} className="border-t">
-              <td className="p-3">{item.description}</td>
-              <td className="p-3">{item.quantity}</td>
-              <td className="p-3">{formatCurrency(item.unit_price)}</td>
-              <td className="p-3 text-right">{formatCurrency(item.total)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {/* Totals */}
-      <div className="grid grid-cols-2 gap-4 max-w-md ml-auto">
-        <div className="text-right">Subtotal:</div>
-        <div className="text-right">{formatCurrency(invoice.subtotal)}</div>
-        
-        <div className="text-right">Tax ({invoice.tax_rate}%):</div>
-        <div className="text-right">{formatCurrency(invoice.tax_amount)}</div>
-        
-        <div className="text-right font-bold">Total:</div>
-        <div className="text-right font-bold">{formatCurrency(invoice.total)}</div>
-      </div>
-
-      {/* Footer */}
-      <div className="mt-12 pt-4 border-t text-sm text-gray-600 text-center">
-        <p>Thank you for your business!</p>
-        <p>{invoice.company_name} • {invoice.company_address}</p>
-      </div>
-    </div>
-  );
-};
-
-// PDF Generation Function
-const generateInvoicePDF = async (invoice: Invoice) => {
-  // Create temporary container
-  const tempDiv = document.createElement("div");
-  tempDiv.style.position = "absolute";
-  tempDiv.style.left = "-9999px";
-  tempDiv.style.width = "800px";
-  
-  // Render PDF component
-  const pdfHTML = ReactDOMServer.renderToString(<InvoicePDF invoice={invoice} />);
-  tempDiv.innerHTML = pdfHTML;
-  document.body.appendChild(tempDiv);
-
-  // Generate PDF
-  const canvas = await html2canvas(tempDiv, {
-    scale: 2,
-    useCORS: true,
-    logging: true,
-  });
-
-  const pdf = new jsPDF("p", "mm", "a4");
-  const imgData = canvas.toDataURL("image/png");
-  const imgWidth = 210; // A4 width in mm
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-  pdf.addImage(imgData, "PNG", 0, 0, imgWidth, imgHeight);
-  pdf.save(`invoice-${invoice.invoice_number}-${format(new Date(), "yyyyMMdd")}.pdf`);
-
-  // Cleanup
-  document.body.removeChild(tempDiv);
-};
-
-// Invoice Page Component
-const InvoicePage = () => {
+const Invoices = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
   const { invoices, loading } = useInvoices();
-  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const printableTableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const foundInvoice = invoices.find((inv) => inv.id === id);
-    if (foundInvoice) setInvoice(foundInvoice);
-  }, [id, invoices]);
+    // Apply filters whenever search query or status filter changes
+    let filtered = [...invoices];
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        invoice => 
+          invoice.invoice_number?.toLowerCase().includes(query) || 
+          invoice.bill_description.toLowerCase().includes(query)
+      );
+    }
+    
+    if (statusFilter) {
+      filtered = filtered.filter(invoice => invoice.status === statusFilter);
+    }
+    
+    setFilteredInvoices(filtered);
+  }, [searchQuery, statusFilter, invoices]);
 
-  if (loading) return <div>Loading...</div>;
-  if (!invoice) return <div>Invoice not found</div>;
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleStatusFilter = (status: string) => {
+    if (statusFilter === status) {
+      setStatusFilter("");
+    } else {
+      setStatusFilter(status);
+    }
+  };
+
+  const handlePrint = () => {
+    if (printableTableRef.current) {
+      // Ensure the content is fully rendered before printing
+      setTimeout(() => {
+        const originalContents = document.body.innerHTML;
+        const printableContents = printableTableRef.current?.innerHTML;
+
+        if (printableContents) {
+          // Replace the body content with the printable content
+          document.body.innerHTML = printableContents;
+          window.print();
+
+          // Restore the original content after printing
+          document.body.innerHTML = originalContents;
+
+          // Reinitialize any necessary event listeners or state
+          window.location.reload(); // Optional: Reload the page to reset the state
+        } else {
+          console.error("No printable content found");
+        }
+      }, 500); // Adjust the delay if necessary
+    }
+  };
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
-      <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Dashboard
-      </Button>
+      {/* Add print-specific styles directly in the component */}
+      <style>
+        {`
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            
+            .printable-table, .printable-table * {
+              visibility: visible;
+            }
+            
+            .printable-table {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              margin: 0;
+              padding: 0;
+              border: none;
+              box-shadow: none;
+            }
+            
+            .no-print {
+              display: none;
+            }
+          }
+        `}
+      </style>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <CardTitle>Invoice #{invoice.invoice_number}</CardTitle>
-              <CardDescription>Manage and track this invoice</CardDescription>
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => generateInvoicePDF(invoice)}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Download PDF
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => window.print()}
-              >
-                <Printer className="mr-2 h-4 w-4" />
-                Print
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {/* PDF Preview (hidden on screen) */}
-          <div className="hidden print:block">
-            <InvoicePDF invoice={invoice} />
-          </div>
+      <div className="no-print">
+        <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-6">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Dashboard
+        </Button>
 
-          {/* Interactive View (hidden in print) */}
-          <div className="print:hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                    <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
-                    <TableCell>
-                      <Badge className={getStatusColor(invoice.status)}>
-                        {invoice.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+        <Card>
+          <CardHeader>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <CardTitle>Invoices</CardTitle>
+                <CardDescription>Manage and track all your invoices</CardDescription>
+              </div>
+              <div className="w-full md:w-auto">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search invoices..."
+                    className="pl-10 w-full md:w-[300px]"
+                    value={searchQuery}
+                    onChange={handleSearch}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Button
+                variant={statusFilter === "Draft" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleStatusFilter("Draft")}
+                className="flex items-center gap-1"
+              >
+                <Filter className="h-3 w-3" />
+                Draft
+              </Button>
+              <Button
+                variant={statusFilter === "Sent" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleStatusFilter("Sent")}
+                className="flex items-center gap-1"
+              >
+                <Filter className="h-3 w-3" />
+                Sent
+              </Button>
+              <Button
+                variant={statusFilter === "Paid" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleStatusFilter("Paid")}
+                className="flex items-center gap-1"
+              >
+                <Filter className="h-3 w-3" />
+                Paid
+              </Button>
+              <Button
+                variant={statusFilter === "Overdue" ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleStatusFilter("Overdue")}
+                className="flex items-center gap-1"
+              >
+                <Filter className="h-3 w-3" />
+                Overdue
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex justify-center items-center h-32">
+                <p className="text-muted-foreground">Loading invoices...</p>
+              </div>
+            ) : filteredInvoices.length === 0 ? (
+              <div className="text-center py-6">
+                <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium">No invoices found</h3>
+                <p className="text-muted-foreground mt-1">
+                  {searchQuery || statusFilter
+                    ? "Try a different search or filter"
+                    : "Create your first invoice from a job card"}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div ref={printableTableRef}>
+                  <Table className="printable-table">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Invoice #</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredInvoices.map((invoice) => (
+                        <TableRow 
+                          key={invoice.id}
+                          className="cursor-pointer"
+                          onClick={() => navigate(`/invoices/${invoice.id}`)}
+                        >
+                          <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                          <TableCell>{format(new Date(invoice.issue_date), "MMM d, yyyy")}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">{invoice.bill_description}</TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(invoice.status)}>
+                              {invoice.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(invoice.total)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Print Button */}
+        <div className="mt-6 no-print">
+          <Button onClick={handlePrint}>
+            <Printer className="mr-2 h-4 w-4" />
+            Print Invoices
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default InvoicePage;
+export default Invoices;
